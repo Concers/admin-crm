@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// TANIMLAMA sayfası
+model Tedarikci {
+  id   Int    @id @default(autoincrement())
+  tip  String // TEDARİKÇİ, HİZMET VEREN, EL PATRON
+  ad   String @unique
+}
+
+model Urun {
+  id  Int    @id @default(autoincrement())
+  ad  String @unique
+}
+
+model GenelGiderTuru {
+  id  Int    @id @default(autoincrement())
+  ad  String @unique
+}
+
+model UrunGiderTuru {
+  id  Int    @id @default(autoincrement())
+  ad  String @unique
+}
+
+// GİRİŞ sayfaları
+model GiderGirisi {
+  id              Int       @id @default(autoincrement())
+  tarih           DateTime
+  giderKategori   String    // Genel_Giderler | Ürün_Giderleri
+  giderTuru       String
+  periyotAy       Int?
+  urunAdi         String?
+  tedarikciAdi    String?
+  toplamTutar     Float     @default(0)
+  pesinOdenen     Float     @default(0)
+  notlar          String?
+  ayAdi           String?   // Excel: AY (OCAK, EKİM, ...)
+  ay              Int?
+  yil             Int?
+  aylikGiderPayi  Float?
+  baslangicAy     Int?
+  baslangicYil    Int?
+  bitisAy         Int?
+  bitisYil        Int?
+  baslangicTarihi DateTime?
+  bitisTarihi     DateTime?
+  createdAt       DateTime  @default(now())
+}
+
+model UrunAlim {
+  id              Int      @id @default(autoincrement())
+  tarih           DateTime
+  urunAdi         String
+  tedarikci       String
+  birimAlimFiyati Float
+  alimAdeti       Float
+  toplamTutar     Float
+  kdvOrani        Float    @default(0.2)
+  kdvDahilTutar   Float
+  pesinOdenen     Float?
+  konulanRaf      String?
+  notlar          String?
+  createdAt       DateTime @default(now())
+}
+
+model UrunSatis {
+  id                   Int      @id @default(autoincrement())
+  tarih                DateTime
+  urunAdi              String
+  musteri              String
+  birimSatisFiyati     Float
+  satisAdeti           Float
+  toplamTutar          Float
+  kdvOrani             Float    @default(0.2)
+  kdvDahilTutar        Float
+  pesinOdenen          Float?
+  hangiRaf             String?
+  notlar               String?
+  alimBirimMaliyeti    Float?
+  uretimBirimMaliyeti  Float?
+  genelGiderMaliyeti   Float?
+  toplamBirimMaliyeti  Float?
+  karYuzdesi           Float?
+  ay                   Int?
+  yil                  Int?
+  createdAt            DateTime @default(now())
+}
+
+model TedarikciOdeme {
+  id          Int      @id @default(autoincrement())
+  tarih       DateTime
+  tedarikciAdi String
+  odenenTutar Float
+  notlar      String?
+  createdAt   DateTime @default(now())
+}
+
+model MusteriTahsilat {
+  id              Int      @id @default(autoincrement())
+  tarih           DateTime
+  musteriAdi      String
+  tahsilatTutari  Float
+  notlar          String?
+  createdAt       DateTime @default(now())
+}
+
+model YeniUrunTakip {
+  id                    Int       @id @default(autoincrement())
+  urunAdi               String
+  islemBaslangicTarihi  DateTime?
+  tedarikci             String?
+  siparisAdedi          Float?
+  sinif                 String?
+  hammaddeMi            String?
+  siparisVerildi        String?
+  fiyatAlindi           String?
+  numuneAlindi          String?
+  numuneOnaylandi       String?
+  uretimBasladi         String?
+  uretimBitti           String?
+  notlar                String?
+  createdAt             DateTime  @default(now())
+}

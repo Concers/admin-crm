@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CRM (Firma Kayıtları)
 
-## Getting Started
+Bir firmanın Excel'de tuttuğu kayıtları birebir dijital ortama taşımak için geliştirilen CRM uygulaması.
 
-First, run the development server:
+## Teknolojiler
+
+- Next.js (App Router) + TypeScript
+- Tailwind CSS (özel hafif UI bileşenleri)
+- Prisma + SQLite (yerel veritabanı)
+- SheetJS (xlsx) — Excel okuma/içe aktarma
+
+## Kurulum
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npx prisma migrate dev   # veritabanını oluşturur
+npm run db:seed          # örnek verileri ekler (opsiyonel)
+npm run dev              # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Komutlar
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Komut | Açıklama |
+| --- | --- |
+| `npm run dev` | Geliştirme sunucusu |
+| `npm run build` | Üretim derlemesi |
+| `npm run db:seed` | Örnek müşteri/fırsat verisi ekler |
+| `npm run db:reset` | Veritabanını sıfırlar ve yeniden kurar |
+| `npm run import:excel -- <dosya.xlsx>` | Excel yapısını analiz eder |
+| `npm run import:excel -- <dosya.xlsx> --apply` | Excel verisini içe aktarır |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Yapı
 
-## Learn More
+- `src/app/page.tsx` — Genel bakış (dashboard)
+- `src/app/musteriler/` — Müşteri listesi, ekleme, düzenleme, detay (CRUD)
+- `src/app/firsatlar/` — Fırsat (deal) yönetimi
+- `src/components/` — UI ve layout bileşenleri
+- `prisma/schema.prisma` — Veri modeli
+- `scripts/import-excel.ts` — Excel analiz/içe aktarma aracı
 
-To learn more about Next.js, take a look at the following resources:
+## Excel'den Birebir Aktarım (Sonraki Adım)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Şu an uygulama, örnek bir `Customer` ve `Deal` modeliyle uçtan uca çalışan bir CRM iskeletidir.
+Firmanın gerçek Excel dosyası proje klasörüne eklendiğinde:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. `npm run import:excel -- firma.xlsx` ile tüm sayfa ve sütunlar analiz edilir.
+2. `prisma/schema.prisma`, Excel'deki sayfa/sütunlara birebir karşılık gelecek şekilde güncellenir.
+3. Migration çalıştırılır ve `--apply` ile veriler içe aktarılır.
+4. İlgili CRUD sayfaları yeni modele göre genişletilir.
