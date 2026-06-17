@@ -1,0 +1,669 @@
+// =============================================================================
+// Kadim Naturel — Mini ERP / Cari & Stok Takip Sistemi
+// Canonical Prisma schema (single source of truth for the database)
+//
+// This schema is owned exclusively by the backend service. The frontend must
+// not keep its own Prisma schema; it consumes data through the backend API.
+// All model and field names are in English; Turkish business terms are noted
+// in comments for traceability against the original Excel workbook.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// Enums
+// -----------------------------------------------------------------------------
+
+/// Business-partner classification (TANIMLAMA → MÜŞTERİ/TEDARİKÇİ/HİZMET VEREN).
+enum PartnerType {
+  CUSTOMER // Müşteri
+  SUPPLIER // Tedarikçi
+  SERVICE_PROVIDER // Hizmet Veren
+  OWNER // El Patron (şirket sahibi / ortak)
+  OTHER
+}
+
+/// Whether an expense is a company-wide overhead or tied to a specific product.
+enum ExpenseScope {
+  GENERAL // Genel_Giderler
+  PRODUCT // ÜRÜN_GİDERLERİ
+}
+
+/// Direction of a cash movement on a partner's current account (cari hesap).
+enum CashFlowType {
+  PAYMENT // Tedarikçi Ödeme (para çıkışı)
+  COLLECTION // Müşteri Tahsilat (para girişi)
+}
+
+/// Role-based access control levels (spec D).
+enum UserRole {
+  ADMIN // Yönetici — tüm finansal veriler
+  SALES_REP // Satış Temsilcisi — sadece satış girişi
+  WAREHOUSE_MANAGER // Depo Sorumlusu — alım & stok
+}
+
+/// Kasa/Banka hesap türü.
+enum AccountType {
+  CASH // Kasa
+  BANK // Banka
+}
+
+/// Stok hareket türü.
+enum StockMovementType {
+  IN // Giriş (alım, üretim)
+  OUT // Çıkış (satış)
+  ADJUSTMENT // Sayım düzeltmesi
+  TRANSFER // Depolar arası transfer
+  WASTE // Fire/zayiat
+}
+
+// -----------------------------------------------------------------------------
+// Master data
+// -----------------------------------------------------------------------------
+
+/// Cari hesap — a customer, supplier, service provider or owner.
+model Partner {
+  id          Int         @id @default(autoincrement())
+  name        String      @unique
+  type        PartnerType
+  contactInfo String? // free-text contact line
+  phone       String?
+  email       String?
+  address     String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  purchasesAsSupplier Purchase[]
+  salesAsCustomer     Sale[]
+  expensesAsProvider  Expense[]
+  cashFlows           CashFlow[]
+  contacts            Contact[]
+
+  @@index([type])
+}
+
+/// Cari'ye bağlı birden çok iletişim kişisi.
+model Contact {
+  id        Int      @id @default(autoincrement())
+  partnerId Int
+  name      String
+  title     String?
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now())
+
+  partner Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId])
+}
+
+/// Ürün — a sellable / purchasable product.
+model Product {
+  id            Int      @id @default(autoincrement())
+  name          String   @unique
+  category      String? // Gıda, Kozmetik vb.
+  shelfLocation String? // raf bilgisi
+  barcode       String? // barkod
+  unit          String   @default("adet") // ölçü birimi (adet, kg, lt…)
+  minStock      Float? // minimum stok / yeniden sipariş seviyesi
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  purchases      Purchase[]
+  sales          Sale[]
+  expenses       Expense[]
+  developments   ProductDevelopment[]
+  stockMovements StockMovement[]
+
+  @@index([category])
+  @@index([barcode])
+}
+
+/// Lookup of expense category names defined in TANIMLAMA, scoped to general
+/// overheads (Kira, Elektrik…) or product expenses (Dolum, Ambalaj…).
+model ExpenseCategory {
+  id        Int          @id @default(autoincrement())
+  name      String
+  scope     ExpenseScope
+  createdAt DateTime     @default(now())
+
+  @@unique([name, scope])
+  @@index([scope])
+}
+
+// -----------------------------------------------------------------------------
+// Transactions
+// -----------------------------------------------------------------------------
+
+/// Ürün Alım — a purchase (goods in from a supplier).
+model Purchase {
+  id                Int      @id @default(autoincrement())
+  date              DateTime
+  productId         Int
+  supplierId        Int
+  unitPrice         Float // birim alım fiyatı
+  quantity          Float // alım adeti
+  vatRate           Float    @default(0.2) // KDV oranı
+  totalAmount       Float // toplam tutar (KDV hariç)
+  vatIncludedAmount Float // KDV dahil tutar
+  paidAmount        Float    @default(0) // peşin ödenen tutar
+  shelfLocation     String? // konulan raf
+  dueDate           DateTime? // vade tarihi
+  currency          String   @default("TRY")
+  exchangeRate      Float    @default(1)
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  product  Product @relation(fields: [productId], references: [id])
+  supplier Partner @relation(fields: [supplierId], references: [id])
+
+  @@index([date])
+  @@index([productId])
+  @@index([supplierId])
+}
+
+/// Ürün Satış — a sale (goods out to a customer).
+/// NOTE: in the source Excel the customer was stored under a column labelled
+/// "TEDARİKÇİ"; per the migration spec this actually represents the customer.
+model Sale {
+  id                Int      @id @default(autoincrement())
+  date              DateTime
+  productId         Int
+  customerId        Int
+  unitPrice         Float // birim satış fiyatı
+  quantity          Float // satış adeti
+  vatRate           Float    @default(0.2)
+  totalAmount       Float
+  vatIncludedAmount Float
+  paidAmount        Float    @default(0)
+  shelfLocation     String? // hangi raf
+  dueDate           DateTime? // vade tarihi
+  currency          String   @default("TRY")
+  exchangeRate      Float    @default(1)
+  notes             String?
+
+  // --- Calculated cost & profitability fields (maliyet & kârlılık motoru) ---
+  purchaseUnitCost   Float? // alım birim maliyeti
+  productionUnitCost Float? // üretim birim maliyeti
+  overheadUnitCost   Float? // genel giderler maliyet payı
+  totalUnitCost      Float? // toplam birim maliyeti
+  profitMargin       Float? // kâr oranı (%)
+
+  // Period helpers carried over from the workbook for fast reporting.
+  periodMonth Int? // ay
+  periodYear  Int? // yıl
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product  Product @relation(fields: [productId], references: [id])
+  customer Partner @relation(fields: [customerId], references: [id])
+
+  @@index([date])
+  @@index([productId])
+  @@index([customerId])
+}
+
+/// Gider Girişi — an expense, optionally amortised across several months
+/// (amortisman/tahakkuk mantığı: durationMonths > 1 spreads the cost evenly).
+model Expense {
+  id          Int          @id @default(autoincrement())
+  date        DateTime
+  scope       ExpenseScope // ürün gideri / genel
+  category    String // gider türü (Kira, Şirket Kuruluş, Dolum…)
+  productId   Int? // set when scope = PRODUCT
+  partnerId   Int? // hizmet veren / tedarikçi
+  totalAmount Float // toplam tutar
+  paidAmount  Float        @default(0) // peşin ödenen tutar
+  notes       String?
+
+  // --- Amortisation window ---
+  durationMonths Int? // gider periyodu (ay)
+  monthlyShare   Float? // aylık gider payı (= paid / durationMonths)
+  startMonth     Int?
+  startYear      Int?
+  endMonth       Int?
+  endYear        Int?
+  startDate      DateTime?
+  endDate        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product? @relation(fields: [productId], references: [id])
+  partner Partner? @relation(fields: [partnerId], references: [id])
+
+  @@index([date])
+  @@index([scope])
+  @@index([productId])
+}
+
+/// Kasa/Banka hareketi — payments to suppliers and collections from customers.
+model CashFlow {
+  id        Int          @id @default(autoincrement())
+  date      DateTime
+  partnerId Int
+  accountId Int? // hangi kasa/banka hesabından
+  type      CashFlowType
+  amount    Float
+  notes     String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  partner     Partner             @relation(fields: [partnerId], references: [id])
+  account     Account?            @relation(fields: [accountId], references: [id])
+  allocations PaymentAllocation[]
+
+  @@index([date])
+  @@index([partnerId])
+  @@index([accountId])
+}
+
+/// Kasa/Banka hesabı.
+model Account {
+  id             Int         @id @default(autoincrement())
+  name           String      @unique
+  type           AccountType
+  currency       String      @default("TRY")
+  openingBalance Float       @default(0)
+  isActive       Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  cashFlows CashFlow[]
+}
+
+/// Depo / lokasyon.
+model Warehouse {
+  id        Int             @id @default(autoincrement())
+  name      String          @unique
+  location  String?
+  isActive  Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  movements StockMovement[]
+}
+
+/// Stok hareket defteri — alım/satış dışındaki açık hareketler
+/// (sayım düzeltmesi, fire, depolar arası transfer).
+model StockMovement {
+  id          Int               @id @default(autoincrement())
+  date        DateTime          @default(now())
+  productId   Int
+  warehouseId Int?
+  type        StockMovementType
+  quantity    Float // pozitif = giriş, negatif = çıkış etkisi türle yorumlanır
+  reason      String?
+  notes       String?
+  createdAt   DateTime          @default(now())
+
+  product   Product    @relation(fields: [productId], references: [id])
+  warehouse Warehouse? @relation(fields: [warehouseId], references: [id])
+
+  @@index([date])
+  @@index([productId])
+}
+
+/// Yeni Ürün Takip — R&D / new-product onboarding pipeline.
+model ProductDevelopment {
+  id              Int       @id @default(autoincrement())
+  productName     String // ürün adı (free text; may predate a Product row)
+  productId       Int? // linked once the product is formally defined
+  startDate       DateTime? // işlem başlangıç tarihi
+  supplierName    String? // tedarikçi
+  orderQuantity   Float? // sipariş adedi
+  productClass    String? // sınıf
+  isRawMaterial   Boolean? // hammadde mi
+  orderPlaced     Boolean? // sipariş verildi
+  priceReceived   Boolean? // fiyat alındı
+  sampleReceived  Boolean? // numune alındı
+  sampleApproved  Boolean? // numune onaylandı
+  productionBegun Boolean? // üretim başladı
+  productionDone  Boolean? // üretim bitti
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  product Product? @relation(fields: [productId], references: [id])
+}
+
+// -----------------------------------------------------------------------------
+// Auth & audit (spec D) — reserved for the access-control phase.
+// -----------------------------------------------------------------------------
+
+model User {
+  id           Int        @id @default(autoincrement())
+  name         String
+  email        String     @unique
+  passwordHash String
+  role         UserRole   @default(ADMIN)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  auditLogs    AuditLog[]
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  action     String // CREATE / UPDATE / DELETE
+  entityName String // Sale, Purchase, Expense…
+  entityId   Int?
+  details    String? // JSON snapshot / diff
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@index([entityName])
+}
+
+// =============================================================================
+// Phase 4 — ERP document modules (orders, quotes, invoices, returns, BOM/
+// production, price lists, discounts, attachments).
+//
+// These use plain Int foreign keys (no @relation back-refs) to avoid cluttering
+// the core Partner/Product models; routes resolve related names as needed.
+// =============================================================================
+
+enum DocumentType {
+  SALES // satış
+  PURCHASE // alım
+}
+
+enum OrderStatus {
+  DRAFT // taslak
+  CONFIRMED // onaylandı
+  DELIVERED // teslim edildi
+  CANCELLED // iptal
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED // kesildi
+  PAID // ödendi
+  CANCELLED
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT // gönderildi
+  ACCEPTED // kabul
+  REJECTED // red
+}
+
+enum ProductionStatus {
+  PLANNED // planlandı
+  IN_PROGRESS // üretimde
+  DONE // tamamlandı
+  CANCELLED
+}
+
+enum ReturnType {
+  SALES_RETURN // satış iadesi
+  PURCHASE_RETURN // alım iadesi
+}
+
+/// Sipariş (satış/alım siparişi) başlığı.
+model Order {
+  id                Int         @id @default(autoincrement())
+  docType           DocumentType
+  partnerId         Int
+  date              DateTime    @default(now())
+  status            OrderStatus @default(DRAFT)
+  totalAmount       Float       @default(0)
+  vatIncludedAmount Float       @default(0)
+  notes             String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  lines OrderLine[]
+
+  @@index([partnerId])
+  @@index([status])
+}
+
+model OrderLine {
+  id        Int   @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  quantity  Float
+  unitPrice Float
+  vatRate   Float @default(0.2)
+  lineTotal Float
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+/// Teklif başlığı.
+model Quote {
+  id                Int         @id @default(autoincrement())
+  partnerId         Int
+  date              DateTime    @default(now())
+  validUntil        DateTime?
+  status            QuoteStatus @default(DRAFT)
+  totalAmount       Float       @default(0)
+  vatIncludedAmount Float       @default(0)
+  notes             String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  lines QuoteLine[]
+
+  @@index([partnerId])
+}
+
+model QuoteLine {
+  id        Int   @id @default(autoincrement())
+  quoteId   Int
+  productId Int
+  quantity  Float
+  unitPrice Float
+  vatRate   Float @default(0.2)
+  lineTotal Float
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId])
+}
+
+/// Fatura başlığı (satış/alım).
+model Invoice {
+  id                Int           @id @default(autoincrement())
+  docType           DocumentType
+  partnerId         Int
+  orderId           Int?
+  number            String?
+  date              DateTime      @default(now())
+  dueDate           DateTime?
+  status            InvoiceStatus @default(DRAFT)
+  totalAmount       Float         @default(0)
+  vatIncludedAmount Float         @default(0)
+  notes             String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  lines       InvoiceLine[]
+  allocations PaymentAllocation[]
+
+  @@index([partnerId])
+  @@index([status])
+}
+
+/// Kısmi ödeme / fatura mutabakatı — bir tahsilat/ödeme (CashFlow) tutarının
+/// bir faturaya tahsis edilen kısmını tutar. Bir fatura birden çok ödemeyle,
+/// bir ödeme birden çok faturaya bölünebilir.
+model PaymentAllocation {
+  id         Int      @id @default(autoincrement())
+  invoiceId  Int
+  cashFlowId Int
+  amount     Float
+  createdAt  DateTime @default(now())
+
+  invoice  Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  cashFlow CashFlow @relation(fields: [cashFlowId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([cashFlowId])
+}
+
+model InvoiceLine {
+  id        Int   @id @default(autoincrement())
+  invoiceId Int
+  productId Int
+  quantity  Float
+  unitPrice Float
+  vatRate   Float @default(0.2)
+  lineTotal Float
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+/// İrsaliye (sevk belgesi).
+model DeliveryNote {
+  id        Int          @id @default(autoincrement())
+  docType   DocumentType
+  partnerId Int
+  orderId   Int?
+  date      DateTime     @default(now())
+  notes     String?
+  createdAt DateTime     @default(now())
+
+  lines DeliveryNoteLine[]
+
+  @@index([partnerId])
+}
+
+model DeliveryNoteLine {
+  id             Int   @id @default(autoincrement())
+  deliveryNoteId Int
+  productId      Int
+  quantity       Float
+
+  deliveryNote DeliveryNote @relation(fields: [deliveryNoteId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryNoteId])
+}
+
+/// İade (satış/alım).
+model Return {
+  id        Int        @id @default(autoincrement())
+  type      ReturnType
+  partnerId Int
+  productId Int
+  date      DateTime   @default(now())
+  quantity  Float
+  amount    Float      @default(0)
+  reason    String?
+  notes     String?
+  createdAt DateTime   @default(now())
+
+  @@index([partnerId])
+  @@index([productId])
+}
+
+/// Ürün reçetesi (mamul → bileşen hammaddeler).
+model Bom {
+  id         Int      @id @default(autoincrement())
+  productId  Int // üretilen mamul
+  name       String
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  components BomComponent[]
+  productionOrders ProductionOrder[]
+
+  @@index([productId])
+}
+
+model BomComponent {
+  id                 Int   @id @default(autoincrement())
+  bomId              Int
+  componentProductId Int // bileşen hammadde
+  quantity           Float // mamul başına miktar
+
+  bom Bom @relation(fields: [bomId], references: [id], onDelete: Cascade)
+
+  @@index([bomId])
+}
+
+/// Üretim emri.
+model ProductionOrder {
+  id        Int              @id @default(autoincrement())
+  bomId     Int?
+  productId Int
+  quantity  Float
+  status    ProductionStatus @default(PLANNED)
+  startDate DateTime?
+  endDate   DateTime?
+  notes     String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  bom Bom? @relation(fields: [bomId], references: [id])
+
+  @@index([status])
+}
+
+/// Fiyat listesi.
+model PriceList {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  currency  String   @default("TRY")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  items PriceListItem[]
+}
+
+model PriceListItem {
+  id          Int   @id @default(autoincrement())
+  priceListId Int
+  productId   Int
+  price       Float
+
+  priceList PriceList @relation(fields: [priceListId], references: [id], onDelete: Cascade)
+
+  @@index([priceListId])
+}
+
+/// İskonto / kampanya.
+model Discount {
+  id        Int       @id @default(autoincrement())
+  name      String
+  percent   Float? // yüzde iskonto
+  amount    Float? // tutar iskontosu
+  productId Int?
+  partnerId Int?
+  validFrom DateTime?
+  validTo   DateTime?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+}
+
+/// Dosya eki (polimorfik: herhangi bir kayda iliştirilir).
+model Attachment {
+  id         Int      @id @default(autoincrement())
+  entityName String // Invoice, Order, Partner…
+  entityId   Int
+  fileName   String
+  url        String
+  mimeType   String?
+  size       Int?
+  uploadedAt DateTime @default(now())
+
+  @@index([entityName, entityId])
+}
