@@ -20,6 +20,15 @@ import {
 } from "../lib/calculations.js";
 import { computeSaleCosts, getProductStock } from "../lib/costing.js";
 import { parseListQuery, dateRangeWhere, paginate } from "../lib/query.js";
+import { assertPeriodOpen } from "../lib/periodLock.js";
+
+/** Resolve a due date from an explicit dueDate or a payment-term in days. */
+function resolveDueDate(body: Record<string, unknown>, date: Date): Date | null {
+  const explicit = parseDate(body.dueDate);
+  if (explicit) return explicit;
+  const term = toNumber(body.termDays, 0);
+  return term > 0 ? new Date(date.getTime() + term * 86400000) : null;
+}
 
 export const transactionsRouter = Router();
 
@@ -100,6 +109,7 @@ async function buildSaleData(body: Record<string, unknown>) {
     totalAmount: totals.totalAmount,
     vatIncludedAmount: totals.vatIncludedAmount,
     paidAmount: toNumber(body.paidAmount),
+    dueDate: resolveDueDate(body, date),
     shelfLocation: (body.shelfLocation as string) || null,
     notes: (body.notes as string) || null,
     purchaseUnitCost: cost.purchaseUnitCost,
@@ -134,8 +144,10 @@ transactionsRouter.post(
 
     const data = await buildSaleData(body);
     if (!data) return res.status(400).json({ error: "date, productName, customerName and quantity are required" });
+    if (!(await assertPeriodOpen(res, data.date))) return;
 
-    const sale = await prisma.sale.create({ data });
+    // Attribute the sale to the entering rep for performance reporting.
+    const sale = await prisma.sale.create({ data: { ...data, salesRepId: req.auth?.userId ?? null } });
     await recordAudit({ userId: req.auth?.userId, action: "CREATE", entityName: "Sale", entityId: sale.id });
     res.status(201).json(redactSale(sale, req.auth?.role));
   }),
@@ -153,6 +165,7 @@ transactionsRouter.put(
     const body = req.body ?? {};
     const data = await buildSaleData(body);
     if (!data) return res.status(400).json({ error: "date, productName, customerName and quantity are required" });
+    if (!(await assertPeriodOpen(res, existing.date, data.date))) return;
 
     // Stock guard, adding back this sale's own current quantity to availability
     // (the existing row already deducted it from current stock).
@@ -181,6 +194,9 @@ transactionsRouter.delete(
   asyncHandler(async (req: AuthedRequest, res) => {
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ error: "invalid id" });
+    const existing = await prisma.sale.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: "not_found" });
+    if (!(await assertPeriodOpen(res, existing.date))) return;
     await prisma.sale.delete({ where: { id } });
     await recordAudit({ userId: req.auth?.userId, action: "DELETE", entityName: "Sale", entityId: id });
     res.status(204).end();
@@ -243,6 +259,7 @@ async function buildPurchaseData(body: Record<string, unknown>) {
     totalAmount: totals.totalAmount,
     vatIncludedAmount: totals.vatIncludedAmount,
     paidAmount: toNumber(body.paidAmount),
+    dueDate: resolveDueDate(body, date),
     shelfLocation: (body.shelfLocation as string) || null,
     notes: (body.notes as string) || null,
   };
@@ -254,6 +271,7 @@ transactionsRouter.post(
   asyncHandler(async (req: AuthedRequest, res) => {
     const data = await buildPurchaseData(req.body ?? {});
     if (!data) return res.status(400).json({ error: "date, productName and quantity are required" });
+    if (!(await assertPeriodOpen(res, data.date))) return;
     const purchase = await prisma.purchase.create({ data });
     await recordAudit({ userId: req.auth?.userId, action: "CREATE", entityName: "Purchase", entityId: purchase.id });
     res.status(201).json(purchase);
@@ -266,9 +284,11 @@ transactionsRouter.put(
   asyncHandler(async (req: AuthedRequest, res) => {
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ error: "invalid id" });
-    if (!(await prisma.purchase.findUnique({ where: { id } }))) return res.status(404).json({ error: "not_found" });
+    const existingPurchase = await prisma.purchase.findUnique({ where: { id } });
+    if (!existingPurchase) return res.status(404).json({ error: "not_found" });
     const data = await buildPurchaseData(req.body ?? {});
     if (!data) return res.status(400).json({ error: "date, productName and quantity are required" });
+    if (!(await assertPeriodOpen(res, existingPurchase.date, data.date))) return;
     const purchase = await prisma.purchase.update({ where: { id }, data });
     await recordAudit({ userId: req.auth?.userId, action: "UPDATE", entityName: "Purchase", entityId: id });
     res.json(purchase);
@@ -281,6 +301,9 @@ transactionsRouter.delete(
   asyncHandler(async (req: AuthedRequest, res) => {
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ error: "invalid id" });
+    const existingPurchase = await prisma.purchase.findUnique({ where: { id } });
+    if (!existingPurchase) return res.status(404).json({ error: "not_found" });
+    if (!(await assertPeriodOpen(res, existingPurchase.date))) return;
     await prisma.purchase.delete({ where: { id } });
     await recordAudit({ userId: req.auth?.userId, action: "DELETE", entityName: "Purchase", entityId: id });
     res.status(204).end();
@@ -350,6 +373,7 @@ transactionsRouter.post(
   asyncHandler(async (req: AuthedRequest, res) => {
     const data = await buildExpenseData(req.body ?? {});
     if (!data) return res.status(400).json({ error: "date is required" });
+    if (!(await assertPeriodOpen(res, data.date))) return;
     const expense = await prisma.expense.create({ data });
     await recordAudit({ userId: req.auth?.userId, action: "CREATE", entityName: "Expense", entityId: expense.id });
     res.status(201).json(expense);
@@ -362,9 +386,11 @@ transactionsRouter.put(
   asyncHandler(async (req: AuthedRequest, res) => {
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ error: "invalid id" });
-    if (!(await prisma.expense.findUnique({ where: { id } }))) return res.status(404).json({ error: "not_found" });
+    const existingExpense = await prisma.expense.findUnique({ where: { id } });
+    if (!existingExpense) return res.status(404).json({ error: "not_found" });
     const data = await buildExpenseData(req.body ?? {});
     if (!data) return res.status(400).json({ error: "date is required" });
+    if (!(await assertPeriodOpen(res, existingExpense.date, data.date))) return;
     const expense = await prisma.expense.update({ where: { id }, data });
     await recordAudit({ userId: req.auth?.userId, action: "UPDATE", entityName: "Expense", entityId: id });
     res.json(expense);
@@ -377,6 +403,9 @@ transactionsRouter.delete(
   asyncHandler(async (req: AuthedRequest, res) => {
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ error: "invalid id" });
+    const existingExpense = await prisma.expense.findUnique({ where: { id } });
+    if (!existingExpense) return res.status(404).json({ error: "not_found" });
+    if (!(await assertPeriodOpen(res, existingExpense.date))) return;
     await prisma.expense.delete({ where: { id } });
     await recordAudit({ userId: req.auth?.userId, action: "DELETE", entityName: "Expense", entityId: id });
     res.status(204).end();
@@ -390,8 +419,19 @@ transactionsRouter.get(
   "/cashflows",
   asyncHandler(async (req, res) => {
     const type = req.query.type === "PAYMENT" || req.query.type === "COLLECTION" ? req.query.type : undefined;
+    const accountId = req.query.accountId ? Number(req.query.accountId) : undefined;
+    if (accountId !== undefined && !Number.isInteger(accountId)) {
+      return res.status(400).json({ error: "invalid accountId" });
+    }
     res.json(
-      await prisma.cashFlow.findMany({ where: type ? { type } : undefined, orderBy: { date: "desc" }, include: { partner: true } }),
+      await prisma.cashFlow.findMany({
+        where: {
+          ...(type ? { type } : {}),
+          ...(accountId !== undefined ? { accountId } : {}),
+        },
+        orderBy: { date: "desc" },
+        include: { partner: true, account: true },
+      }),
     );
   }),
 );
@@ -416,7 +456,15 @@ async function buildCashFlowData(body: Record<string, unknown>) {
 
   const partnerId = await resolvePartnerId(partnerName, type === "PAYMENT" ? "SUPPLIER" : "CUSTOMER");
   if (partnerId === null) return null;
-  return { date, partnerId, type: type as "PAYMENT" | "COLLECTION", amount, notes: (body.notes as string) || null };
+  const accountId = body.accountId != null && body.accountId !== "" ? Number(body.accountId) : null;
+  return {
+    date,
+    partnerId,
+    type: type as "PAYMENT" | "COLLECTION",
+    amount,
+    accountId: accountId && Number.isInteger(accountId) ? accountId : null,
+    notes: (body.notes as string) || null,
+  };
 }
 
 transactionsRouter.post(
@@ -425,6 +473,7 @@ transactionsRouter.post(
   asyncHandler(async (req: AuthedRequest, res) => {
     const data = await buildCashFlowData(req.body ?? {});
     if (!data) return res.status(400).json({ error: "date, partnerName, amount and type (PAYMENT|COLLECTION) are required" });
+    if (!(await assertPeriodOpen(res, data.date))) return;
     const cashFlow = await prisma.cashFlow.create({ data });
     await recordAudit({ userId: req.auth?.userId, action: "CREATE", entityName: "CashFlow", entityId: cashFlow.id });
     res.status(201).json(cashFlow);
@@ -437,9 +486,11 @@ transactionsRouter.put(
   asyncHandler(async (req: AuthedRequest, res) => {
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ error: "invalid id" });
-    if (!(await prisma.cashFlow.findUnique({ where: { id } }))) return res.status(404).json({ error: "not_found" });
+    const existingFlow = await prisma.cashFlow.findUnique({ where: { id } });
+    if (!existingFlow) return res.status(404).json({ error: "not_found" });
     const data = await buildCashFlowData(req.body ?? {});
     if (!data) return res.status(400).json({ error: "date, partnerName, amount and type (PAYMENT|COLLECTION) are required" });
+    if (!(await assertPeriodOpen(res, existingFlow.date, data.date))) return;
     const cashFlow = await prisma.cashFlow.update({ where: { id }, data });
     await recordAudit({ userId: req.auth?.userId, action: "UPDATE", entityName: "CashFlow", entityId: id });
     res.json(cashFlow);
@@ -452,6 +503,9 @@ transactionsRouter.delete(
   asyncHandler(async (req: AuthedRequest, res) => {
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ error: "invalid id" });
+    const existingFlow = await prisma.cashFlow.findUnique({ where: { id } });
+    if (!existingFlow) return res.status(404).json({ error: "not_found" });
+    if (!(await assertPeriodOpen(res, existingFlow.date))) return;
     await prisma.cashFlow.delete({ where: { id } });
     await recordAudit({ userId: req.auth?.userId, action: "DELETE", entityName: "CashFlow", entityId: id });
     res.status(204).end();

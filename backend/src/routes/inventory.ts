@@ -14,6 +14,20 @@ import { parseDate, toNumber } from "../lib/calculations.js";
 
 export const inventoryRouter = Router();
 
+const warehouseSchema = z.object({ name: z.string().min(1), location: z.string().optional() });
+const accountSchema = z.object({
+  name: z.string().min(1),
+  type: z.enum(["CASH", "BANK"]),
+  currency: z.string().default("TRY"),
+  openingBalance: z.number().default(0),
+});
+const contactSchema = z.object({
+  name: z.string().min(1),
+  title: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().optional(),
+});
+
 // --- Warehouses (admin) ------------------------------------------------------
 inventoryRouter.get(
   "/warehouses",
@@ -24,11 +38,26 @@ inventoryRouter.post(
   "/warehouses",
   requireRole("ADMIN"),
   asyncHandler(async (req: AuthedRequest, res) => {
-    const data = validateBody(z.object({ name: z.string().min(1), location: z.string().optional() }), req.body, res);
+    const data = validateBody(warehouseSchema, req.body, res);
     if (!data) return;
     const wh = await prisma.warehouse.create({ data });
     await recordAudit({ userId: req.auth?.userId, action: "CREATE", entityName: "Warehouse", entityId: wh.id });
     res.status(201).json(wh);
+  }),
+);
+
+inventoryRouter.put(
+  "/warehouses/:id",
+  requireRole("ADMIN"),
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid id" });
+    if (!(await prisma.warehouse.findUnique({ where: { id } }))) return res.status(404).json({ error: "not_found" });
+    const data = validateBody(warehouseSchema, req.body, res);
+    if (!data) return;
+    const wh = await prisma.warehouse.update({ where: { id }, data: { name: data.name, location: data.location ?? null } });
+    await recordAudit({ userId: req.auth?.userId, action: "UPDATE", entityName: "Warehouse", entityId: wh.id });
+    res.json(wh);
   }),
 );
 
@@ -55,20 +84,26 @@ inventoryRouter.post(
   "/accounts",
   requireRole("ADMIN"),
   asyncHandler(async (req: AuthedRequest, res) => {
-    const data = validateBody(
-      z.object({
-        name: z.string().min(1),
-        type: z.enum(["CASH", "BANK"]),
-        currency: z.string().default("TRY"),
-        openingBalance: z.number().default(0),
-      }),
-      req.body,
-      res,
-    );
+    const data = validateBody(accountSchema, req.body, res);
     if (!data) return;
     const account = await prisma.account.create({ data });
     await recordAudit({ userId: req.auth?.userId, action: "CREATE", entityName: "Account", entityId: account.id });
     res.status(201).json(account);
+  }),
+);
+
+inventoryRouter.put(
+  "/accounts/:id",
+  requireRole("ADMIN"),
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid id" });
+    if (!(await prisma.account.findUnique({ where: { id } }))) return res.status(404).json({ error: "not_found" });
+    const data = validateBody(accountSchema, req.body, res);
+    if (!data) return;
+    const account = await prisma.account.update({ where: { id }, data });
+    await recordAudit({ userId: req.auth?.userId, action: "UPDATE", entityName: "Account", entityId: account.id });
+    res.json(account);
   }),
 );
 
@@ -175,20 +210,29 @@ inventoryRouter.post(
   asyncHandler(async (req: AuthedRequest, res) => {
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ error: "invalid id" });
-    const data = validateBody(
-      z.object({
-        name: z.string().min(1),
-        title: z.string().optional(),
-        phone: z.string().optional(),
-        email: z.string().optional(),
-      }),
-      req.body,
-      res,
-    );
+    const data = validateBody(contactSchema, req.body, res);
     if (!data) return;
     const contact = await prisma.contact.create({ data: { ...data, partnerId: id } });
     await recordAudit({ userId: req.auth?.userId, action: "CREATE", entityName: "Contact", entityId: contact.id });
     res.status(201).json(contact);
+  }),
+);
+
+inventoryRouter.put(
+  "/contacts/:id",
+  requireRole("ADMIN"),
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid id" });
+    if (!(await prisma.contact.findUnique({ where: { id } }))) return res.status(404).json({ error: "not_found" });
+    const data = validateBody(contactSchema, req.body, res);
+    if (!data) return;
+    const contact = await prisma.contact.update({
+      where: { id },
+      data: { name: data.name, title: data.title ?? null, phone: data.phone ?? null, email: data.email ?? null },
+    });
+    await recordAudit({ userId: req.auth?.userId, action: "UPDATE", entityName: "Contact", entityId: contact.id });
+    res.json(contact);
   }),
 );
 
@@ -201,5 +245,55 @@ inventoryRouter.delete(
     await prisma.contact.delete({ where: { id } });
     await recordAudit({ userId: req.auth?.userId, action: "DELETE", entityName: "Contact", entityId: id });
     res.status(204).end();
+  }),
+);
+
+// --- TCMB exchange rates (dövizli işlem otomasyonu) --------------------------
+/** Pull a tag's text out of a TCMB <Currency> XML block. */
+function xmlTag(block: string, tag: string): number | null {
+  const m = block.match(new RegExp(`<${tag}>([^<]*)</${tag}>`));
+  const v = m ? parseFloat(m[1]) : NaN;
+  return Number.isFinite(v) ? v : null;
+}
+
+/**
+ * Today's TCMB (Turkish Central Bank) FX rates so dövizli sales/purchases can
+ * auto-fill the TRY exchange rate. `?currency=USD` returns one; otherwise all.
+ * Proxied server-side (the bank's XML has no CORS headers for the browser).
+ */
+inventoryRouter.get(
+  "/exchange-rates/tcmb",
+  asyncHandler(async (req, res) => {
+    const wanted = typeof req.query.currency === "string" ? req.query.currency.toUpperCase() : null;
+    let xml: string;
+    try {
+      const r = await fetch("https://www.tcmb.gov.tr/kurlar/today.xml", { signal: AbortSignal.timeout(8000) });
+      if (!r.ok) return res.status(502).json({ error: "tcmb_unavailable", status: r.status });
+      xml = await r.text();
+    } catch {
+      return res.status(502).json({ error: "tcmb_fetch_failed", message: "TCMB kurları alınamadı." });
+    }
+
+    const date = xml.match(/Tarih="([^"]+)"/)?.[1] ?? null;
+    const rates = [...xml.matchAll(/<Currency[^>]*Kod="([A-Z]+)"[\s\S]*?<\/Currency>/g)].map((m) => {
+      const code = m[1];
+      const block = m[0];
+      const unit = xmlTag(block, "Unit") ?? 1;
+      return {
+        code,
+        unit,
+        forexBuying: xmlTag(block, "ForexBuying"),
+        forexSelling: xmlTag(block, "ForexSelling"),
+        banknoteBuying: xmlTag(block, "BanknoteBuying"),
+        banknoteSelling: xmlTag(block, "BanknoteSelling"),
+      };
+    });
+
+    if (wanted) {
+      const one = rates.find((x) => x.code === wanted);
+      if (!one) return res.status(404).json({ error: "currency_not_found", currency: wanted });
+      return res.json({ date, ...one });
+    }
+    res.json({ date, rates });
   }),
 );

@@ -27,6 +27,7 @@ import {
   getCostCenterReport,
   getCustomerProfitability,
   getDeadStock,
+  getSalesRepPerformance,
 } from "../lib/analytics.js";
 
 export const reportsRouter = Router();
@@ -105,6 +106,15 @@ reportsRouter.get(
 reportsRouter.get(
   "/reports/customer-profitability",
   asyncHandler(async (_req, res) => res.json(await getCustomerProfitability())),
+);
+
+reportsRouter.get(
+  "/reports/sales-rep-performance",
+  asyncHandler(async (req, res) => {
+    const start = req.query.start ? new Date(String(req.query.start)) : undefined;
+    const end = req.query.end ? new Date(String(req.query.end)) : undefined;
+    res.json(await getSalesRepPerformance(start, end));
+  }),
 );
 
 reportsRouter.get(

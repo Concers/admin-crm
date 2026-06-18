@@ -45,7 +45,7 @@ export default async function DashboardPage() {
         </span>
         <span className="ml-4 shrink-0 font-medium text-[var(--primary)]">Rehberi Aç →</span>
       </Link>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div data-tour="stats" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => {
           const Icon = c.icon;
           return (
@@ -64,7 +64,7 @@ export default async function DashboardPage() {
         })}
       </div>
 
-      <Card>
+      <Card data-tour="chart">
         <CardContent className="p-0">
           <div className="border-b border-[var(--border)] p-5">
             <h3 className="font-semibold">Satış / Alım / Gider Karşılaştırması</h3>

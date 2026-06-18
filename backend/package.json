@@ -11,7 +11,8 @@
     "prisma:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset --force",
     "db:import": "tsx src/scripts/importFromExcel.ts",
-    "db:seed-users": "tsx src/scripts/seedUsers.ts"
+    "db:seed-users": "tsx src/scripts/seedUsers.ts",
+    "db:seed-dummy": "tsx src/scripts/seedDummy.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

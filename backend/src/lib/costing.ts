@@ -82,25 +82,103 @@ export async function computeSaleCosts(
   return { purchaseUnitCost, productionUnitCost, overheadUnitCost, totalUnitCost, profitMargin };
 }
 
+/** Per-product stock, broken down by the source of each effect. */
+export interface StockBreakdown {
+  purchased: number; // Σ purchases
+  sold: number; // Σ sales
+  movements: number; // net manual stock movements (IN/OUT/WASTE/ADJUSTMENT)
+  returns: number; // + sales returns, − purchase returns
+  production: number; // + finished goods produced, − components consumed (DONE orders)
+  stock: number; // net of all of the above
+}
+
+function emptyBreakdown(): StockBreakdown {
+  return { purchased: 0, sold: 0, movements: 0, returns: 0, production: 0, stock: 0 };
+}
+
 /**
- * Current stock level for a product:
- *   Σ purchased − Σ sold + net explicit stock movements (adjustments/waste).
- * Used by the negative-stock guard on sale entry and the stock report.
+ * Single source of truth for product stock. Integrates every effect that moves
+ * inventory so the sale guard, the stock report and the low-stock report all
+ * agree:
+ *   + purchases            − sales
+ *   ± manual stock movements (IN/ADJUSTMENT +, OUT/WASTE −, TRANSFER nets to 0)
+ *   + sales returns        − purchase returns
+ *   + finished goods of DONE production orders
+ *   − components those DONE orders consumed (resolved through their BOM)
+ *
+ * Returns a map keyed by productId so callers can render the whole catalogue in
+ * a single pass; {@link getProductStock} reads one entry from it.
  */
-export async function getProductStock(prisma: PrismaClient, productId: number): Promise<number> {
-  const [purchased, sold, movements] = await Promise.all([
-    prisma.purchase.aggregate({ where: { productId }, _sum: { quantity: true } }),
-    prisma.sale.aggregate({ where: { productId }, _sum: { quantity: true } }),
-    prisma.stockMovement.findMany({ where: { productId }, select: { type: true, quantity: true } }),
+export async function getStockBreakdownMap(
+  prisma: PrismaClient,
+): Promise<Map<number, StockBreakdown>> {
+  const [purchases, sales, movements, returns, doneOrders] = await Promise.all([
+    prisma.purchase.findMany({ select: { productId: true, quantity: true } }),
+    prisma.sale.findMany({ select: { productId: true, quantity: true } }),
+    prisma.stockMovement.findMany({ select: { productId: true, type: true, quantity: true } }),
+    prisma.return.findMany({ select: { productId: true, type: true, quantity: true } }),
+    prisma.productionOrder.findMany({
+      where: { status: "DONE" },
+      select: { productId: true, quantity: true, bomId: true },
+    }),
   ]);
 
-  let adjustment = 0;
-  for (const m of movements) {
-    if (m.type === "IN") adjustment += m.quantity;
-    else if (m.type === "OUT" || m.type === "WASTE") adjustment -= m.quantity;
-    else if (m.type === "ADJUSTMENT") adjustment += m.quantity; // signed
-    // TRANSFER nets to zero at the global (non-per-warehouse) level.
+  // Resolve the components of every DONE order's BOM in one query.
+  const bomIds = [...new Set(doneOrders.map((o) => o.bomId).filter((x): x is number => x != null))];
+  const components = bomIds.length
+    ? await prisma.bomComponent.findMany({
+        where: { bomId: { in: bomIds } },
+        select: { bomId: true, componentProductId: true, quantity: true },
+      })
+    : [];
+  const compsByBom = new Map<number, { componentProductId: number; quantity: number }[]>();
+  for (const c of components) {
+    const arr = compsByBom.get(c.bomId) ?? [];
+    arr.push({ componentProductId: c.componentProductId, quantity: c.quantity });
+    compsByBom.set(c.bomId, arr);
   }
 
-  return (purchased._sum.quantity ?? 0) - (sold._sum.quantity ?? 0) + adjustment;
+  const map = new Map<number, StockBreakdown>();
+  const row = (pid: number): StockBreakdown => {
+    let r = map.get(pid);
+    if (!r) {
+      r = emptyBreakdown();
+      map.set(pid, r);
+    }
+    return r;
+  };
+
+  for (const p of purchases) row(p.productId).purchased += p.quantity;
+  for (const s of sales) row(s.productId).sold += s.quantity;
+  for (const m of movements) {
+    const r = row(m.productId);
+    if (m.type === "IN" || m.type === "ADJUSTMENT") r.movements += m.quantity; // ADJUSTMENT is signed
+    else if (m.type === "OUT" || m.type === "WASTE") r.movements -= m.quantity;
+    // TRANSFER nets to zero at the global (non-per-warehouse) level.
+  }
+  for (const ret of returns) {
+    row(ret.productId).returns += ret.type === "SALES_RETURN" ? ret.quantity : -ret.quantity;
+  }
+  for (const o of doneOrders) {
+    row(o.productId).production += o.quantity; // finished good produced
+    if (o.bomId != null) {
+      for (const c of compsByBom.get(o.bomId) ?? []) {
+        row(c.componentProductId).production -= o.quantity * c.quantity; // component consumed
+      }
+    }
+  }
+
+  for (const r of map.values()) {
+    r.stock = r.purchased - r.sold + r.movements + r.returns + r.production;
+  }
+  return map;
+}
+
+/**
+ * Current stock level for a single product, integrating all effects.
+ * Used by the negative-stock guard on sale entry.
+ */
+export async function getProductStock(prisma: PrismaClient, productId: number): Promise<number> {
+  const map = await getStockBreakdownMap(prisma);
+  return map.get(productId)?.stock ?? 0;
 }

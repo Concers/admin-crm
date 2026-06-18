@@ -52,15 +52,17 @@ export async function deleteTedarikci(id: number) {
 
 export async function createUrun(formData: FormData) {
   const ad = trim(formData.get("ad"));
+  const raf = trim(formData.get("raf"));
   if (!ad) return;
-  await createProduct({ name: ad });
+  await createProduct({ name: ad, shelfLocation: raf || null });
   revalidateTanimlama();
 }
 
 export async function updateUrun(id: number, formData: FormData) {
   const ad = trim(formData.get("ad"));
+  const raf = trim(formData.get("raf"));
   if (!ad) return;
-  await updateProduct(id, { name: ad });
+  await updateProduct(id, { name: ad, shelfLocation: raf || null });
   revalidateTanimlama();
 }
 

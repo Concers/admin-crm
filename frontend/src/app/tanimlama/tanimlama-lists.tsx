@@ -294,6 +294,126 @@ export function TedarikciList({
   );
 }
 
+export function UrunList({
+  rows,
+  onUpdate,
+  onDelete,
+  emptyIcon: EmptyIcon = Tags,
+}: {
+  rows: { id: number; ad: string; raf: string }[];
+  onUpdate: (id: number, fd: FormData) => Promise<void>;
+  onDelete: (id: number) => Promise<void>;
+  emptyIcon?: React.ElementType;
+}) {
+  const [editId, setEditId] = useState<number | null>(null);
+  const [query, setQuery] = useState("");
+  const { run, pending } = useActionToast();
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => r.ad.toLowerCase().includes(q) || r.raf.toLowerCase().includes(q));
+  }, [rows, query]);
+
+  return (
+    <ListShell count={filtered.length} total={rows.length}>
+      {rows.length > 3 && (
+        <ListSearch value={query} onChange={setQuery} placeholder="Ürün veya raf ara..." />
+      )}
+      {filtered.length === 0 ? (
+        <EmptyState icon={EmptyIcon} query={query} entity="ürün" />
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-[var(--border)]">
+          <div className="max-h-[320px] overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 z-10 bg-[var(--muted)] shadow-[0_1px_0_var(--border)]">
+                <tr className="text-left text-[var(--muted-foreground)]">
+                  <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide">Ürün Adı</th>
+                  <th className="w-36 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide">Hangi Raf</th>
+                  <th className="w-20 px-4 py-2.5" />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((row) =>
+                  editId === row.id ? (
+                    <tr key={row.id} className="border-t bg-[var(--accent)]/60">
+                      <td className="px-4 py-2">
+                        <Input name="ad" defaultValue={row.ad} id={`urun-ad-${row.id}`} />
+                      </td>
+                      <td className="px-4 py-2">
+                        <Input name="raf" defaultValue={row.raf} id={`urun-raf-${row.id}`} placeholder="—" />
+                      </td>
+                      <td className="px-4 py-2">
+                        <div className="flex justify-end gap-0.5">
+                          <Button
+                            type="button"
+                            size="icon"
+                            disabled={pending}
+                            title="Kaydet"
+                            aria-label="Kaydet"
+                            onClick={() => {
+                              const fd = new FormData();
+                              fd.set("ad", (document.getElementById(`urun-ad-${row.id}`) as HTMLInputElement).value);
+                              fd.set("raf", (document.getElementById(`urun-raf-${row.id}`) as HTMLInputElement).value);
+                              run(
+                                async () => {
+                                  await onUpdate(row.id, fd);
+                                  setEditId(null);
+                                },
+                                { success: "Ürün güncellendi." },
+                              );
+                            }}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            title="İptal"
+                            aria-label="İptal"
+                            onClick={() => setEditId(null)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={row.id} className="border-t transition-colors hover:bg-[var(--muted)]/60">
+                      <td className="px-4 py-2.5 font-medium">{row.ad}</td>
+                      <td className="px-4 py-2.5">
+                        {row.raf ? (
+                          <span className="inline-flex rounded-md bg-[var(--muted)] px-2 py-0.5 text-xs font-medium text-[var(--muted-foreground)] ring-1 ring-[var(--border)]">
+                            {row.raf}
+                          </span>
+                        ) : (
+                          <span className="text-[var(--muted-foreground)]">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <RowActions
+                          disabled={pending}
+                          onEdit={() => setEditId(row.id)}
+                          onDelete={() => {
+                            if (confirm(`"${row.ad}" silinsin mi?`)) {
+                              run(() => onDelete(row.id), { success: "Ürün silindi." });
+                            }
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  ),
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </ListShell>
+  );
+}
+
 export function SimpleAdList({
   rows,
   label,

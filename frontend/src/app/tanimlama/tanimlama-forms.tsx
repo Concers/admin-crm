@@ -74,9 +74,13 @@ export function TedarikciEkleForm() {
 export function UrunEkleForm() {
   return (
     <AddRowForm action={createUrun} label="Ekle" successMessage="Ürün eklendi.">
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-[2]">
         <Label htmlFor="urun-ad">Ürün Adı *</Label>
         <Input id="urun-ad" name="ad" required placeholder="Örn. Zeytinyağı 500ml" />
+      </div>
+      <div className="min-w-[120px] flex-1">
+        <Label htmlFor="urun-raf">Hangi Raf</Label>
+        <Input id="urun-raf" name="raf" placeholder="Örn. A-03" />
       </div>
     </AddRowForm>
   );

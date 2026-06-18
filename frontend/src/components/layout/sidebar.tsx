@@ -24,10 +24,12 @@ import {
   BarChart3,
   KeyRound,
   BookOpen,
+  LayoutGrid,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROLE_LABELS, type UserRole } from "@/lib/roles";
 import { logout } from "@/app/login/actions";
+import { TourButton } from "@/components/tour/tour-button";
 
 type Role = UserRole;
 
@@ -59,6 +61,7 @@ const belgeler: NavItem[] = [
 ];
 
 const stokKasa: NavItem[] = [
+  { href: "/raf-takibi", label: "Raf Takibi", icon: LayoutGrid, roles: ["ADMIN", "WAREHOUSE_MANAGER"] },
   { href: "/stok-hareketleri", label: "Stok Hareketleri", icon: Boxes, roles: ["ADMIN", "WAREHOUSE_MANAGER"] },
   { href: "/depolar", label: "Depolar", icon: Warehouse, roles: ["ADMIN"] },
 ];
@@ -124,10 +127,10 @@ function NavLink({ href, label, icon: Icon }: Omit<NavItem, "roles">) {
   );
 }
 
-function NavSection({ title, items }: { title: string; items: NavItem[] }) {
+function NavSection({ title, items, tourId }: { title: string; items: NavItem[]; tourId?: string }) {
   if (items.length === 0) return null;
   return (
-    <div>
+    <div data-tour={tourId}>
       <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-wider text-[var(--muted-foreground)]">{title}</p>
       <div className="space-y-0.5">
         {items.map((item) => (
@@ -156,14 +159,16 @@ export function Sidebar({ role, userName }: { role: Role | null; userName: strin
         <span className="text-lg font-semibold tracking-tight">Kadim ERP</span>
       </div>
 
-      <nav className="flex-1 space-y-4 overflow-y-auto p-3">
+      <nav data-tour="sidebar" className="flex-1 space-y-4 overflow-y-auto p-3">
         <NavLink href="/" label="Genel Bakış" icon={LayoutDashboard} />
-        <NavLink href="/rehber" label="Başlangıç Rehberi" icon={BookOpen} />
-        <NavSection title="Giriş" items={girisItems} />
-        <NavSection title="Belgeler" items={belgeItems} />
-        <NavSection title="Stok & Kasa" items={stokItems} />
+        <div data-tour="nav-rehber">
+          <NavLink href="/rehber" label="Başlangıç Rehberi" icon={BookOpen} />
+        </div>
+        <NavSection title="Giriş" items={girisItems} tourId="nav-giris" />
+        <NavSection title="Belgeler" items={belgeItems} tourId="nav-belgeler" />
+        <NavSection title="Stok & Kasa" items={stokItems} tourId="nav-stok" />
         <NavSection title="Üretim & Fiyat" items={uretimItems} />
-        <NavSection title="Raporlar" items={raporItems} />
+        <NavSection title="Raporlar" items={raporItems} tourId="nav-raporlar" />
         <NavSection title="Analizler" items={analizItems} />
         <NavSection title="Sistem" items={sistemItems} />
       </nav>
@@ -173,6 +178,7 @@ export function Sidebar({ role, userName }: { role: Role | null; userName: strin
           <p className="truncate text-sm font-medium">{userName ?? "Kullanıcı"}</p>
           <p className="text-xs text-[var(--muted-foreground)]">{role ? ROLE_LABELS[role] : ""}</p>
         </div>
+        <TourButton />
         <NavLink href="/sifre-degistir" label="Şifre Değiştir" icon={KeyRound} />
         <form action={logout}>
           <button

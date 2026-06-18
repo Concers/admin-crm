@@ -37,3 +37,85 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, Arial, sans-serif;
 }
+
+/* -------------------------------------------------------------------------
+   Shepherd.js onboarding turu — panel tasarım token'larıyla uyumlu tema.
+   ------------------------------------------------------------------------- */
+.shepherd-element.kadim-tour {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  box-shadow: 0 12px 32px -8px rgb(15 23 42 / 0.25);
+  max-width: 22rem;
+  font-family: var(--font-sans), system-ui, Arial, sans-serif;
+}
+
+.kadim-tour .shepherd-content {
+  border-radius: 0.75rem;
+  padding: 0;
+}
+
+.kadim-tour .shepherd-header {
+  background: transparent;
+  padding: 1rem 1.1rem 0.25rem;
+}
+
+.kadim-tour .shepherd-title {
+  color: var(--foreground);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.kadim-tour .shepherd-text {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  padding: 0.35rem 1.1rem 0.9rem;
+}
+
+.kadim-tour .shepherd-text strong {
+  color: var(--foreground);
+}
+
+.kadim-tour .shepherd-footer {
+  padding: 0 1.1rem 1rem;
+  gap: 0.5rem;
+}
+
+.kadim-tour .shepherd-button {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.825rem;
+  font-weight: 500;
+  transition: opacity 0.15s ease;
+}
+
+.kadim-tour .shepherd-button:hover:not(:disabled) {
+  opacity: 0.9;
+  background: var(--primary);
+}
+
+.kadim-tour .shepherd-button.shepherd-button-secondary {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.kadim-tour .shepherd-button.shepherd-button-secondary:hover:not(:disabled) {
+  background: var(--accent);
+}
+
+.kadim-tour .shepherd-cancel-icon {
+  color: var(--muted-foreground);
+}
+
+.kadim-tour .shepherd-arrow:before {
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+/* Modal arkaplan karartması */
+.shepherd-modal-overlay-container.shepherd-modal-is-visible {
+  opacity: 0.55;
+}

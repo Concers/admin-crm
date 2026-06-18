@@ -6,6 +6,7 @@
 // =============================================================================
 
 import { prisma } from "./prisma.js";
+import { getStockBreakdownMap } from "./costing.js";
 
 /** Dashboard headline figures + recent activity. */
 export async function getDashboardStats() {
@@ -39,22 +40,27 @@ export async function getDashboardStats() {
   };
 }
 
-/** Stock report — quantity purchased vs sold per product. */
+/**
+ * Stock report — quantity purchased vs sold per product, with the true on-hand
+ * level (includes manual movements, returns and production via the shared
+ * stock engine so it matches the sale guard).
+ */
 export async function getStockReport() {
-  const [products, purchases, sales] = await Promise.all([
+  const [products, stockMap] = await Promise.all([
     prisma.product.findMany({ orderBy: { name: "asc" } }),
-    prisma.purchase.findMany({ select: { productId: true, quantity: true } }),
-    prisma.sale.findMany({ select: { productId: true, quantity: true } }),
+    getStockBreakdownMap(prisma),
   ]);
 
   return products.map((product) => {
-    const purchased = purchases
-      .filter((p) => p.productId === product.id)
-      .reduce((sum, p) => sum + p.quantity, 0);
-    const sold = sales
-      .filter((s) => s.productId === product.id)
-      .reduce((sum, s) => sum + s.quantity, 0);
-    return { product: product.name, purchased, sold, stock: purchased - sold };
+    const b = stockMap.get(product.id);
+    return {
+      product: product.name,
+      shelf: product.shelfLocation ?? null,
+      unit: product.unit,
+      purchased: b?.purchased ?? 0,
+      sold: b?.sold ?? 0,
+      stock: b?.stock ?? 0,
+    };
   });
 }
 
@@ -337,23 +343,18 @@ export async function getStockLedger(productName: string) {
 
 /** Products at or below their minimum stock level (düşük stok uyarısı). */
 export async function getLowStockReport() {
-  const [products, purchases, sales, movements] = await Promise.all([
+  const [products, stockMap] = await Promise.all([
     prisma.product.findMany({ where: { minStock: { not: null } } }),
-    prisma.purchase.findMany({ select: { productId: true, quantity: true } }),
-    prisma.sale.findMany({ select: { productId: true, quantity: true } }),
-    prisma.stockMovement.findMany({ select: { productId: true, type: true, quantity: true } }),
+    getStockBreakdownMap(prisma),
   ]);
 
   return products
-    .map((p) => {
-      const purchased = purchases.filter((x) => x.productId === p.id).reduce((s, x) => s + x.quantity, 0);
-      const sold = sales.filter((x) => x.productId === p.id).reduce((s, x) => s + x.quantity, 0);
-      const adj = movements
-        .filter((m) => m.productId === p.id)
-        .reduce((s, m) => s + (m.type === "IN" ? m.quantity : m.type === "ADJUSTMENT" ? m.quantity : -m.quantity), 0);
-      const stock = purchased - sold + adj;
-      return { product: p.name, stock, minStock: p.minStock ?? 0, unit: p.unit };
-    })
+    .map((p) => ({
+      product: p.name,
+      stock: stockMap.get(p.id)?.stock ?? 0,
+      minStock: p.minStock ?? 0,
+      unit: p.unit,
+    }))
     .filter((r) => r.stock <= r.minStock)
     .sort((a, b) => a.stock - b.stock);
 }

@@ -11,7 +11,7 @@ import {
   updateUrun,
   updateUrunGider,
 } from "./actions";
-import { SimpleAdList, TedarikciList } from "./tanimlama-lists";
+import { SimpleAdList, TedarikciList, UrunList } from "./tanimlama-lists";
 
 export function TedarikciListClient({
   rows,
@@ -27,18 +27,8 @@ export function TedarikciListClient({
   );
 }
 
-export function UrunListClient({ rows }: { rows: { id: number; ad: string }[] }) {
-  return (
-    <SimpleAdList
-      rows={rows}
-      label="Ürün Adı"
-      onUpdate={updateUrun}
-      onDelete={deleteUrun}
-      searchPlaceholder="Ürün ara..."
-      emptyEntity="ürün"
-      emptyIcon={Package}
-    />
-  );
+export function UrunListClient({ rows }: { rows: { id: number; ad: string; raf: string }[] }) {
+  return <UrunList rows={rows} onUpdate={updateUrun} onDelete={deleteUrun} emptyIcon={Package} />;
 }
 
 export function GenelGiderListClient({

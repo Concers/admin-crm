@@ -119,3 +119,48 @@ adminRouter.get(
     res.json(paginate(logs, q, res));
   }),
 );
+
+// --- Period locks (Dönem Kapatma) --------------------------------------------
+const periodLockSchema = z.object({
+  year: z.number().int().min(2000).max(2100),
+  month: z.number().int().min(1).max(12).nullable().optional(),
+  note: z.string().optional(),
+});
+
+adminRouter.get(
+  "/period-locks",
+  adminOnly,
+  asyncHandler(async (_req, res) => {
+    res.json(await prisma.periodLock.findMany({ orderBy: [{ year: "desc" }, { month: "desc" }] }));
+  }),
+);
+
+adminRouter.post(
+  "/period-locks",
+  adminOnly,
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const data = validateBody(periodLockSchema, req.body, res);
+    if (!data) return;
+    const month = data.month ?? null;
+    // findFirst (not findUnique): SQLite treats NULL months as distinct in the
+    // unique index, so the year-only lock must be de-duplicated in code.
+    const exists = await prisma.periodLock.findFirst({ where: { year: data.year, month } });
+    if (exists) return res.status(409).json({ error: "period_already_locked" });
+    const lock = await prisma.periodLock.create({ data: { year: data.year, month, note: data.note ?? null } });
+    await recordAudit({ userId: req.auth?.userId, action: "CREATE", entityName: "PeriodLock", entityId: lock.id });
+    res.status(201).json(lock);
+  }),
+);
+
+adminRouter.delete(
+  "/period-locks/:id",
+  adminOnly,
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid id" });
+    if (!(await prisma.periodLock.findUnique({ where: { id } }))) return res.status(404).json({ error: "not_found" });
+    await prisma.periodLock.delete({ where: { id } });
+    await recordAudit({ userId: req.auth?.userId, action: "DELETE", entityName: "PeriodLock", entityId: id });
+    res.status(204).end();
+  }),
+);

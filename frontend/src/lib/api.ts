@@ -201,7 +201,7 @@ export interface DashboardStats {
 }
 export const getDashboard = () => apiGet<DashboardStats>("/dashboard");
 
-export interface StockRow { product: string; purchased: number; sold: number; stock: number }
+export interface StockRow { product: string; shelf: string | null; unit: string; purchased: number; sold: number; stock: number }
 export const getStockReport = () => apiGet<StockRow[]>("/reports/stock");
 
 /** Unified current-account balance per partner (net across customer & supplier roles). */

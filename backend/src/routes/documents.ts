@@ -48,6 +48,24 @@ function computeTotals(lines: LineInput[]) {
 
 const docTypeEnum = z.enum(["SALES", "PURCHASE"]);
 
+// Allowed values for list-filter query params, used to reject typos with a 400
+// (an unvalidated filter would silently return an empty list instead).
+const DOC_TYPES = ["SALES", "PURCHASE"] as const;
+const ORDER_STATUSES = ["DRAFT", "CONFIRMED", "DELIVERED", "CANCELLED"] as const;
+const QUOTE_STATUSES = ["DRAFT", "SENT", "ACCEPTED", "REJECTED"] as const;
+const INVOICE_STATUSES = ["DRAFT", "ISSUED", "PAID", "CANCELLED"] as const;
+const PRODUCTION_STATUSES = ["PLANNED", "IN_PROGRESS", "DONE", "CANCELLED"] as const;
+
+/**
+ * Validate an optional enum query param. Returns `undefined` when absent, the
+ * value when valid, or `null` when present-but-invalid (caller responds 400).
+ */
+function enumQuery(raw: unknown, allowed: readonly string[]): string | undefined | null {
+  if (raw === undefined || raw === "") return undefined;
+  const v = String(raw);
+  return allowed.includes(v) ? v : null;
+}
+
 // =============================================================================
 // 1. Orders — /orders
 // =============================================================================
@@ -64,8 +82,9 @@ const orderBodySchema = z.object({
 documentsRouter.get(
   "/orders",
   asyncHandler(async (req, res) => {
-    const docType = req.query.docType ? String(req.query.docType) : undefined;
-    const status = req.query.status ? String(req.query.status) : undefined;
+    const docType = enumQuery(req.query.docType, DOC_TYPES);
+    const status = enumQuery(req.query.status, ORDER_STATUSES);
+    if (docType === null || status === null) return res.status(400).json({ error: "invalid docType/status filter" });
     res.json(
       await prisma.order.findMany({
         where: {
@@ -178,7 +197,8 @@ const quoteBodySchema = z.object({
 documentsRouter.get(
   "/quotes",
   asyncHandler(async (req, res) => {
-    const status = req.query.status ? String(req.query.status) : undefined;
+    const status = enumQuery(req.query.status, QUOTE_STATUSES);
+    if (status === null) return res.status(400).json({ error: "invalid status filter" });
     res.json(
       await prisma.quote.findMany({
         where: status ? { status: status as never } : {},
@@ -291,8 +311,9 @@ const invoiceBodySchema = z.object({
 documentsRouter.get(
   "/invoices",
   asyncHandler(async (req, res) => {
-    const docType = req.query.docType ? String(req.query.docType) : undefined;
-    const status = req.query.status ? String(req.query.status) : undefined;
+    const docType = enumQuery(req.query.docType, DOC_TYPES);
+    const status = enumQuery(req.query.status, INVOICE_STATUSES);
+    if (docType === null || status === null) return res.status(400).json({ error: "invalid docType/status filter" });
     res.json(
       await prisma.invoice.findMany({
         where: {
@@ -323,6 +344,11 @@ documentsRouter.post(
   asyncHandler(async (req: AuthedRequest, res) => {
     const data = validateBody(invoiceBodySchema, req.body, res);
     if (!data) return;
+    // Reject a duplicate invoice number so the same invoice isn't booked twice.
+    if (data.number?.trim()) {
+      const dup = await prisma.invoice.findFirst({ where: { number: data.number.trim() } });
+      if (dup) return res.status(409).json({ error: "duplicate_number", message: `"${data.number.trim()}" numaralı fatura zaten mevcut.` });
+    }
     const { computedLines, totalAmount, vatIncludedAmount } = computeTotals(data.lines);
     const invoice = await prisma.invoice.create({
       data: {
@@ -355,6 +381,11 @@ documentsRouter.put(
     if (!existing) return res.status(404).json({ error: "not_found" });
     const data = validateBody(invoiceBodySchema, req.body, res);
     if (!data) return;
+    // Reject a duplicate number held by a DIFFERENT invoice.
+    if (data.number?.trim()) {
+      const dup = await prisma.invoice.findFirst({ where: { number: data.number.trim(), id: { not: id } } });
+      if (dup) return res.status(409).json({ error: "duplicate_number", message: `"${data.number.trim()}" numaralı fatura zaten mevcut.` });
+    }
     const { computedLines, totalAmount, vatIncludedAmount } = computeTotals(data.lines);
     const invoice = await prisma.$transaction(async (tx) => {
       await tx.invoiceLine.deleteMany({ where: { invoiceId: id } });
@@ -552,6 +583,34 @@ documentsRouter.post(
   }),
 );
 
+documentsRouter.put(
+  "/returns/:id",
+  requireRole("ADMIN"),
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid id" });
+    const existing = await prisma.return.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: "not_found" });
+    const data = validateBody(returnBodySchema, req.body, res);
+    if (!data) return;
+    const ret = await prisma.return.update({
+      where: { id },
+      data: {
+        type: data.type,
+        partnerId: data.partnerId,
+        productId: data.productId,
+        date: parseDate(data.date) ?? existing.date,
+        quantity: data.quantity,
+        amount: data.amount ?? 0,
+        reason: data.reason ?? null,
+        notes: data.notes ?? null,
+      },
+    });
+    await recordAudit({ userId: req.auth?.userId, action: "UPDATE", entityName: "Return", entityId: ret.id });
+    res.json(ret);
+  }),
+);
+
 documentsRouter.delete(
   "/returns/:id",
   requireRole("ADMIN"),
@@ -676,7 +735,8 @@ const productionOrderBodySchema = z.object({
 documentsRouter.get(
   "/production-orders",
   asyncHandler(async (req, res) => {
-    const status = req.query.status ? String(req.query.status) : undefined;
+    const status = enumQuery(req.query.status, PRODUCTION_STATUSES);
+    if (status === null) return res.status(400).json({ error: "invalid status filter" });
     res.json(
       await prisma.productionOrder.findMany({
         where: status ? { status: status as never } : {},
@@ -767,6 +827,7 @@ documentsRouter.delete(
 const priceListBodySchema = z.object({
   name: z.string().min(1),
   currency: z.string().optional(),
+  tier: z.string().optional(), // müşteri segmenti (Partner.priceTier ile eşleşir)
   isActive: z.boolean().optional(),
   items: z
     .array(z.object({ productId: z.number().int().positive(), price: z.number() }))
@@ -801,6 +862,7 @@ documentsRouter.post(
       data: {
         name: data.name,
         currency: data.currency ?? "TRY",
+        tier: data.tier?.trim() || null,
         isActive: data.isActive ?? true,
         items: { create: data.items },
       },
@@ -828,6 +890,7 @@ documentsRouter.put(
         data: {
           name: data.name,
           currency: data.currency ?? existing.currency,
+          tier: data.tier?.trim() || null,
           isActive: data.isActive ?? existing.isActive,
           items: { create: data.items },
         },
@@ -850,6 +913,35 @@ documentsRouter.delete(
     await prisma.priceList.delete({ where: { id } });
     await recordAudit({ userId: req.auth?.userId, action: "DELETE", entityName: "PriceList", entityId: id });
     res.status(204).end();
+  }),
+);
+
+/**
+ * Resolve the unit price for a product given a partner, using the partner's
+ * price tier (Partner.priceTier → PriceList.tier). Lets the sales form auto-fill
+ * the wholesale/retail price. Returns `{ price: null }` when no tiered price
+ * exists so the UI falls back to manual entry.
+ */
+documentsRouter.get(
+  "/price-resolve",
+  asyncHandler(async (req, res) => {
+    const partnerId = req.query.partnerId ? Number(req.query.partnerId) : NaN;
+    const productId = req.query.productId ? Number(req.query.productId) : NaN;
+    if (!Number.isInteger(partnerId) || !Number.isInteger(productId)) {
+      return res.status(400).json({ error: "partnerId and productId are required" });
+    }
+    const partner = await prisma.partner.findUnique({ where: { id: partnerId }, select: { priceTier: true } });
+    const tier = partner?.priceTier?.trim() || null;
+    if (!tier) return res.json({ price: null, reason: "partner_has_no_tier" });
+
+    const priceList = await prisma.priceList.findFirst({
+      where: { tier, isActive: true },
+      orderBy: { id: "desc" },
+      include: { items: { where: { productId } } },
+    });
+    const item = priceList?.items[0];
+    if (!item) return res.json({ price: null, reason: "no_price_for_tier", tier });
+    res.json({ price: item.price, currency: priceList!.currency, tier, priceListId: priceList!.id, priceListName: priceList!.name });
   }),
 );
 

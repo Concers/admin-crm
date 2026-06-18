@@ -37,7 +37,7 @@ export default async function TanimlamaPage() {
     tip: p.type,
     ad: p.name,
   }));
-  const urunler = sortByName(urunlerData).map((u) => ({ id: u.id, ad: u.name }));
+  const urunler = sortByName(urunlerData).map((u) => ({ id: u.id, ad: u.name, raf: u.shelfLocation ?? "" }));
   const genelGiderler = sortByName(genelGiderData).map((g) => ({
     id: g.id,
     ad: g.name,

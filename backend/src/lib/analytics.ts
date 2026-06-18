@@ -100,6 +100,39 @@ export async function getCustomerProfitability() {
 }
 
 /**
+ * Sales-rep performance — revenue, cost, net profit and order count per rep,
+ * over an optional date range. Sales are attributed via `salesRepId` (the user
+ * who entered them); historical sales with no rep are grouped under "Atanmamış".
+ */
+export async function getSalesRepPerformance(start?: Date, end?: Date) {
+  const dateFilter = start || end ? { date: { ...(start ? { gte: start } : {}), ...(end ? { lte: end } : {}) } } : {};
+  const [users, sales] = await Promise.all([
+    prisma.user.findMany({ select: { id: true, name: true, email: true } }),
+    prisma.sale.findMany({
+      where: dateFilter,
+      select: { salesRepId: true, totalAmount: true, vatIncludedAmount: true, totalUnitCost: true, quantity: true },
+    }),
+  ]);
+  const nameById = new Map(users.map((u) => [u.id, u.name]));
+
+  const acc = new Map<number | "none", { rep: string; revenue: number; cost: number; profit: number; orders: number }>();
+  for (const s of sales) {
+    const key = s.salesRepId ?? "none";
+    let row = acc.get(key);
+    if (!row) {
+      row = { rep: s.salesRepId ? nameById.get(s.salesRepId) ?? `#${s.salesRepId}` : "Atanmamış", revenue: 0, cost: 0, profit: 0, orders: 0 };
+      acc.set(key, row);
+    }
+    row.revenue += s.totalAmount;
+    row.cost += (s.totalUnitCost ?? 0) * s.quantity;
+    row.orders += 1;
+  }
+  return [...acc.values()]
+    .map((r) => ({ ...r, profit: r.revenue - r.cost, marginPct: r.revenue > 0 ? ((r.revenue - r.cost) / r.revenue) * 100 : 0 }))
+    .sort((a, b) => b.profit - a.profit);
+}
+
+/**
  * Cost-center distribution — expenses grouped by category for a period, with a
  * comparison to the equal-length preceding period and a change %.
  */

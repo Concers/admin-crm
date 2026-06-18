@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/layout/app-shell";
 import { ToastProvider } from "@/components/ui/toast";
+import { TourProvider } from "@/components/tour/tour-provider";
 import { getSession } from "@/lib/session";
 
 const geistSans = Geist({
@@ -34,9 +35,11 @@ export default async function RootLayout({
     >
       <body className="min-h-full">
         <ToastProvider>
-          <AppShell role={session?.role ?? null} userName={session?.name ?? null}>
-            {children}
-          </AppShell>
+          <TourProvider role={session?.role ?? null}>
+            <AppShell role={session?.role ?? null} userName={session?.name ?? null}>
+              {children}
+            </AppShell>
+          </TourProvider>
         </ToastProvider>
       </body>
     </html>

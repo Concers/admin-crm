@@ -44,13 +44,13 @@ masterDataRouter.get(
 masterDataRouter.post(
   "/partners",
   asyncHandler(async (req, res) => {
-    const { name, type, contactInfo, phone, email, address } = req.body ?? {};
+    const { name, type, contactInfo, phone, email, address, priceTier } = req.body ?? {};
     if (!name || !type) return res.status(400).json({ error: "name and type are required" });
     // Upsert by unique name so re-adding an existing partner just updates it.
     const partner = await prisma.partner.upsert({
       where: { name: String(name).trim() },
-      update: { type, contactInfo, phone, email, address },
-      create: { name: String(name).trim(), type, contactInfo, phone, email, address },
+      update: { type, contactInfo, phone, email, address, priceTier },
+      create: { name: String(name).trim(), type, contactInfo, phone, email, address, priceTier },
     });
     res.status(201).json(partner);
   }),
@@ -61,10 +61,10 @@ masterDataRouter.put(
   asyncHandler(async (req, res) => {
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ error: "invalid id" });
-    const { name, type, contactInfo, phone, email, address } = req.body ?? {};
+    const { name, type, contactInfo, phone, email, address, priceTier } = req.body ?? {};
     const partner = await prisma.partner.update({
       where: { id },
-      data: { name: name?.trim(), type, contactInfo, phone, email, address },
+      data: { name: name?.trim(), type, contactInfo, phone, email, address, priceTier },
     });
     res.json(partner);
   }),
@@ -176,9 +176,65 @@ masterDataRouter.delete(
 );
 
 // --- Product developments (Yeni Ürün Takip) ----------------------------------
+/** Coerce a request body into ProductDevelopment column values. */
+function buildDevData(body: Record<string, unknown>) {
+  const num = (v: unknown) => (v === undefined || v === null || v === "" ? null : Number(v));
+  const bool = (v: unknown) => (v === undefined || v === null ? null : Boolean(v));
+  const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+  return {
+    productName: String(body.productName ?? "").trim(),
+    productId: body.productId != null && body.productId !== "" ? Number(body.productId) : null,
+    startDate: body.startDate ? new Date(String(body.startDate)) : null,
+    supplierName: str(body.supplierName),
+    orderQuantity: num(body.orderQuantity),
+    productClass: str(body.productClass),
+    isRawMaterial: bool(body.isRawMaterial),
+    orderPlaced: bool(body.orderPlaced),
+    priceReceived: bool(body.priceReceived),
+    sampleReceived: bool(body.sampleReceived),
+    sampleApproved: bool(body.sampleApproved),
+    productionBegun: bool(body.productionBegun),
+    productionDone: bool(body.productionDone),
+    notes: str(body.notes),
+  };
+}
+
 masterDataRouter.get(
   "/product-developments",
   asyncHandler(async (_req, res) => {
     res.json(await prisma.productDevelopment.findMany({ orderBy: { productName: "asc" } }));
+  }),
+);
+
+masterDataRouter.post(
+  "/product-developments",
+  asyncHandler(async (req, res) => {
+    const data = buildDevData(req.body ?? {});
+    if (!data.productName) return res.status(400).json({ error: "productName is required" });
+    const dev = await prisma.productDevelopment.create({ data });
+    res.status(201).json(dev);
+  }),
+);
+
+masterDataRouter.put(
+  "/product-developments/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid id" });
+    if (!(await prisma.productDevelopment.findUnique({ where: { id } }))) return res.status(404).json({ error: "not_found" });
+    const data = buildDevData(req.body ?? {});
+    if (!data.productName) return res.status(400).json({ error: "productName is required" });
+    const dev = await prisma.productDevelopment.update({ where: { id }, data });
+    res.json(dev);
+  }),
+);
+
+masterDataRouter.delete(
+  "/product-developments/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid id" });
+    await prisma.productDevelopment.delete({ where: { id } });
+    res.status(204).end();
   }),
 );

@@ -24,6 +24,7 @@ const ROUTE_ROLES: { prefix: string; roles: string[] }[] = [
   { prefix: "/belgeler/teklif", roles: SALES_ROLES },
   { prefix: "/belgeler", roles: ["ADMIN"] },
   { prefix: "/mutabakat", roles: ["ADMIN"] },
+  { prefix: "/raf-takibi", roles: STOCK_ROLES },
   { prefix: "/stok-hareketleri", roles: STOCK_ROLES },
   { prefix: "/depolar", roles: ["ADMIN"] },
   { prefix: "/kullanicilar", roles: ["ADMIN"] },

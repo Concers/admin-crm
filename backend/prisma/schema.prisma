@@ -77,6 +77,7 @@ model Partner {
   phone       String?
   email       String?
   address     String?
+  priceTier   String? // fiyat segmenti (WHOLESALE/RETAIL…) — fiyat listesi eşleşmesi
   isActive    Boolean     @default(true)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -203,6 +204,8 @@ model Sale {
   periodMonth Int? // ay
   periodYear  Int? // yıl
 
+  salesRepId Int? // satışı giren/atanan satış temsilcisi (User.id) — performans raporu
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -212,6 +215,7 @@ model Sale {
   @@index([date])
   @@index([productId])
   @@index([customerId])
+  @@index([salesRepId])
 }
 
 /// Gider Girişi — an expense, optionally amortised across several months
@@ -623,10 +627,13 @@ model PriceList {
   id        Int      @id @default(autoincrement())
   name      String   @unique
   currency  String   @default("TRY")
+  tier      String? // bu liste hangi müşteri segmentine ait (Partner.priceTier ile eşleşir)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
   items PriceListItem[]
+
+  @@index([tier])
 }
 
 model PriceListItem {
@@ -666,4 +673,17 @@ model Attachment {
   uploadedAt DateTime @default(now())
 
   @@index([entityName, entityId])
+}
+
+/// Dönem kapatma — muhasebesi/mutabakatı biten dönemlere geriye dönük kayıt
+/// girişini/değişikliğini kilitler. `month` null ise tüm yıl kilitlenir.
+model PeriodLock {
+  id        Int      @id @default(autoincrement())
+  year      Int
+  month     Int? // 1-12; null = tüm yıl
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@unique([year, month])
+  @@index([year])
 }
