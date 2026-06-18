@@ -95,4 +95,14 @@ Backend kısımları **hazırlandı ve API testleriyle doğrulandı**; her madde
   - [ ] Not: geçmiş (import) satışların temsilcisi yok ("Atanmamış"); sonraki girişler otomatik atanır.
 
 ---
+
+# Notlar / Bilinen Sorunlar (2026-06-19)
+
+## `/yeni-urun-takip` sayfası açılmıyordu (ÇÖZÜLDÜ)
+- **Belirti:** Sayfa açılmıyordu; `GET /product-developments` → **500** (frontend digest `275667567`).
+- **Sebep:** Pull ile gelen `29cc090` commit'i `schema.prisma`'ya `ProductDevelopment.attributes` (Json) kolonunu **migration üretmeden** eklemiş → DB'de kolon yok (`P2022: column main.ProductDevelopment.attributes does not exist`). (Aynısı daha önce `Expense.invoiceNo/excelRow` için de olmuştu.)
+- **Çözüm:** Eksik migration eklendi → `backend/prisma/migrations/20260619100000_add_product_development_attributes/` (additive, nullable → veri kaybı yok). `prisma migrate deploy` ile uygulandı; uç artık **200**.
+- **Dikkat:** `29cc090` şema↔migration tutarsızlığı bırakmıştı; bu repoyu klonlayan biri benzer P2022 hataları alabilir — `prisma migrate status` "güncel" dese de şema-DB drift'i olabilir.
+
+---
 _Bu dosya backend boşlukları kapatıldıktan sonra üretildi; tamamlanan maddeleri işaretleyip silebilirsiniz._
