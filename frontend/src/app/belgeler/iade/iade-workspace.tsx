@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import {
+  MoreHorizontal,
   Package,
   Pencil,
   RotateCcw,
@@ -10,6 +11,23 @@ import {
 } from "lucide-react";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { RecordWorkspaceToolbar } from "@/components/record-workspace-toolbar";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { cn } from "@/lib/utils";
@@ -199,33 +217,55 @@ function IadeList({
 
 function RowActions({ row, onEdit }: { row: IadeTableRow; onEdit: () => void }) {
   const { run, pending } = useActionToast();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
   return (
-    <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onEdit}
-        title="Düzenle"
-        aria-label="Düzenle"
-        className="h-8 w-8"
-      >
-        <Pencil className="h-4 w-4" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        disabled={pending}
-        title="Sil"
-        aria-label="Sil"
-        className="h-8 w-8 text-red-600 hover:bg-red-50 hover:text-red-700"
-        onClick={() => {
-          if (confirm(`"${row.urun}" iade kaydı silinsin mi?`)) {
-            run(() => deleteIade(row.id), { success: "İade kaydı silindi." });
-          }
-        }}
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
+    <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="İşlemler" aria-label="İşlemler">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem onSelect={() => onEdit()}>
+            <Pencil className="h-4 w-4" />
+            Düzenle
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            variant="danger"
+            onSelect={() => {
+              // Menünün kapanmasına izin ver, sonra AlertDialog'u aç (focus çakışmasını önler).
+              setTimeout(() => setConfirmOpen(true), 0);
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+            Sil
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>İade kaydı silinsin mi?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{row.urun}</strong> için {row.tarih} tarihli iade kaydı kalıcı olarak silinecek. Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pending}>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={pending}
+              className="bg-red-600 text-white hover:bg-red-700"
+              onClick={() => run(() => deleteIade(row.id), { success: "İade kaydı silindi." })}
+            >
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

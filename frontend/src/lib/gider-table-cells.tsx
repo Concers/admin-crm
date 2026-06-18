@@ -210,11 +210,14 @@ export function buildGiderDataColumns() {
       col.key in giderCellRenderers
         ? giderCellRenderers[col.key as keyof typeof giderCellRenderers]
         : undefined;
+    const isMoney = GIDER_MONEY_KEYS.has(col.key);
     return {
       key: col.key,
       label: col.label,
       sortValue: GIDER_SORT_VALUE[col.key],
-      align: GIDER_MONEY_KEYS.has(col.key) ? ("right" as const) : undefined,
+      align: isMoney ? ("right" as const) : undefined,
+      // Para kolonları: tek-değer dropdown yerine min–max aralık filtresi.
+      ...(isMoney ? { filterType: "number" as const } : {}),
       ...(render
         ? {
             render,

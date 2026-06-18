@@ -8,6 +8,23 @@ import { AlimWorkspace } from "./alim-list";
 
 export const dynamic = "force-dynamic";
 
+/** Son ayın toplam tutarı ile bir önceki ayın değişimi (%). */
+function monthlyTrend(items: { date: string | Date; totalAmount: number | null }[]): number | null {
+  const byMonth = new Map<string, number>();
+  for (const it of items) {
+    const d = new Date(it.date);
+    if (Number.isNaN(d.getTime())) continue;
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    byMonth.set(key, (byMonth.get(key) ?? 0) + (it.totalAmount ?? 0));
+  }
+  const keys = [...byMonth.keys()].sort();
+  if (keys.length < 2) return null;
+  const last = byMonth.get(keys[keys.length - 1]) ?? 0;
+  const prev = byMonth.get(keys[keys.length - 2]) ?? 0;
+  if (prev === 0) return null;
+  return ((last - prev) / prev) * 100;
+}
+
 export default async function UrunAlimPage() {
   const [alimlar, urunler, suppliers, serviceProviders] = await Promise.all([
     getPurchases(),
@@ -55,10 +72,12 @@ export default async function UrunAlimPage() {
     _notes: a.notes ?? "",
   }));
 
+  const trend = monthlyTrend(alimlar);
+
   return (
     <PageShell
       title="Ürün Alım Giriş"
-      description="Tedarikçiden yapılan alımları kaydedin, stok ve maliyet takibini güncel tutun"
+      description="Tedarikçi alımlarını ve maliyetleri yönetin"
       actions={<ExportButton type="purchases" />}
     >
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:gap-4">
@@ -75,6 +94,7 @@ export default async function UrunAlimPage() {
           icon={Package}
           accent="blue"
           subtext="KDV hariç"
+          trend={trend != null ? { value: trend, label: "önceki aya göre" } : undefined}
         />
         <StatCard
           label="KDV Dahil"

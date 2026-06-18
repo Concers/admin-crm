@@ -1,17 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4f6f9;
-  --foreground: #0f172a;
+  /* Palet: 2a2b2a · 5e4955 · 996888 · c99da3 · c6ddf0
+     (kömür → koyu erik → mauve → tozlu pembe → açık mavi) */
+  --background: #eef3f8; /* açık mavi zemin (c6ddf0 yumuşatılmış) */
+  --foreground: #2a2b2a; /* kömür metin */
   --card: #ffffff;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --border: #e2e8f0;
-  --primary: #2563eb;
+  --muted: #e7edf4; /* açık mavi-gri panel */
+  --muted-foreground: #6b606a; /* mauve-gri ikincil metin */
+  --border: #d6dde8; /* yumuşak mavi-gri kenarlık */
+  --primary: #996888; /* mauve marka */
   --primary-foreground: #ffffff;
-  --accent: #eff6ff;
-  --ring: #93c5fd;
-  --success: #059669;
+  --accent: #f0e7ee; /* açık mauve vurgu (aktif menü/hover) */
+  --ring: #c99da3; /* tozlu pembe odak halkası */
+  --success: #1a936f;
   --danger: #dc2626;
   --radius: 0.75rem;
 }
@@ -179,3 +181,19 @@ body {
 .shepherd-modal-overlay-container.shepherd-modal-is-visible {
   opacity: 0.55;
 }
+
+/* -------------------------------------------------------------------------
+   shadcn/ui (Radix) — giriş/çıkış animasyonları. Bileşenler tasarım
+   token'larını (var(--card)/--border…) kullanır; ekstra renk token'ı gerekmez.
+   ------------------------------------------------------------------------- */
+@keyframes ui-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ui-overlay-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes ui-content-in { from { opacity: 0; transform: translate(-50%, -48%) scale(0.96); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes ui-content-out { from { opacity: 1; transform: translate(-50%, -50%) scale(1); } to { opacity: 0; transform: translate(-50%, -48%) scale(0.96); } }
+@keyframes ui-pop-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+
+.ui-overlay[data-state="open"] { animation: ui-overlay-in 0.15s ease-out; }
+.ui-overlay[data-state="closed"] { animation: ui-overlay-out 0.15s ease-in; }
+.ui-dialog[data-state="open"] { animation: ui-content-in 0.18s ease-out; }
+.ui-dialog[data-state="closed"] { animation: ui-content-out 0.15s ease-in; }
+.ui-pop[data-state="open"] { animation: ui-pop-in 0.12s ease-out; transform-origin: var(--radix-dropdown-menu-content-transform-origin, center); }

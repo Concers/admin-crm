@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TableToolbar } from "@/components/table-toolbar";
+import { DataTableToolbar, type ToolbarSelect } from "@/components/data-table-toolbar";
+import { isFilterActive, type ColFilter, type FacetColumn } from "@/components/table-faceted-filters";
 import { uniqueStrings } from "@/lib/utils";
 
 export type Column<T> = {
@@ -14,6 +15,8 @@ export type Column<T> = {
   sortable?: boolean;
   /** false ise sütun filtresi gösterilmez */
   filterable?: boolean;
+  /** Sütun filtresi türü: çok-seçim (category, varsayılan) veya sayısal aralık (number) */
+  filterType?: "category" | "number";
   /** Sıralama için ham değer (sayı, tarih ISO, vb.) */
   sortValue?: (row: T) => string | number | null | undefined;
   /** Filtre eşleştirmesi için değer (varsayılan: sortValue veya hücre metni) */
@@ -89,17 +92,13 @@ function getColumnFilterValue<T extends Record<string, unknown>>(row: T, col: Co
   return raw != null && raw !== "" ? String(raw).trim() : "";
 }
 
-function buildColumnFilterOptions<T extends Record<string, unknown>>(
-  rows: T[],
-  col: Column<T>
-): string[] {
-  const values = rows
-    .map((r) => getColumnFilterValue(r, col))
-    .filter((v) => v && v !== "—" && v !== "-");
-  const unique = uniqueStrings(values);
-  const allNumeric = unique.length > 0 && unique.every((v) => /^\d+$/.test(v));
-  if (allNumeric) return unique.sort((a, b) => Number(a) - Number(b));
-  return unique;
+/** Numeric value of a column cell, for number-range filtering. */
+function getColumnNumber<T extends Record<string, unknown>>(row: T, col: Column<T>): number | null {
+  const raw = col.sortValue ? col.sortValue(row) : getColumnFilterValue(row, col);
+  if (raw == null || raw === "") return null;
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
+  const n = Number(String(raw).replace(/[^\d.-]/g, ""));
+  return Number.isFinite(n) ? n : null;
 }
 
 function TableHorizontalScroll({
@@ -263,7 +262,7 @@ export function DataTable<T extends Record<string, unknown>>({
 }) {
   const [query, setQuery] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
-  const [columnFilterValues, setColumnFilterValues] = useState<Record<string, string>>({});
+  const [columnFilterValues, setColumnFilterValues] = useState<Record<string, ColFilter>>({});
   const [amountField, setAmountField] = useState(
     amountFilter?.defaultField ?? amountFilter?.fields[0]?.id ?? ""
   );
@@ -277,14 +276,41 @@ export function DataTable<T extends Record<string, unknown>>({
     [columns]
   );
 
-  const columnFilterOptions = useMemo(() => {
-    if (!columnFilters) return {};
-    const out: Record<string, string[]> = {};
-    for (const col of filterableColumns) {
-      out[col.key] = buildColumnFilterOptions(rows, col);
-    }
-    return out;
-  }, [rows, filterableColumns, columnFilters]);
+  const colByKey = useMemo(() => {
+    const m = new Map<string, Column<T>>();
+    for (const c of filterableColumns) m.set(c.key, c);
+    return m;
+  }, [filterableColumns]);
+
+  // Rows constrained only by the text search — faceted option counts reflect this set.
+  const searchFiltered = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    if (!q || !searchKeys?.length) return rows;
+    return rows.filter((row) => searchKeys.some((k) => String(row[k] ?? "").toLowerCase().includes(q)));
+  }, [rows, query, searchKeys]);
+
+  // Faceted filter columns (multi-select category w/ counts, or numeric range).
+  const facetColumns = useMemo<FacetColumn[]>(() => {
+    if (!columnFilters) return [];
+    return filterableColumns.map((col) => {
+      if (col.filterType === "number") {
+        return { key: col.key, label: col.label, type: "number" as const };
+      }
+      const counts = new Map<string, number>();
+      for (const r of searchFiltered) {
+        const v = getColumnFilterValue(r, col);
+        if (!v || v === "—" || v === "-") continue;
+        counts.set(v, (counts.get(v) ?? 0) + 1);
+      }
+      const numeric = [...counts.keys()].every((v) => /^\d+$/.test(v));
+      const options = [...counts.entries()]
+        .map(([value, count]) => ({ value, count }))
+        .sort((a, b) =>
+          numeric ? Number(a.value) - Number(b.value) : a.value.localeCompare(b.value, "tr", { numeric: true }),
+        );
+      return { key: col.key, label: col.label, type: "category" as const, options };
+    });
+  }, [columnFilters, filterableColumns, searchFiltered]);
 
   const sortableColumns = useMemo(
     () => columns.filter((c) => c.sortable !== false && c.key !== "id" && c.key !== "sil"),
@@ -303,7 +329,7 @@ export function DataTable<T extends Record<string, unknown>>({
   const minAmount = parseAmountInput(amountMin);
   const maxAmount = parseAmountInput(amountMax);
   const hasAmountFilter = minAmount != null || maxAmount != null;
-  const activeColumnFilterCount = Object.values(columnFilterValues).filter(Boolean).length;
+  const activeColumnFilterCount = Object.values(columnFilterValues).filter(isFilterActive).length;
   const activeFilterCount =
     Object.values(filterValues).filter(Boolean).length +
     activeColumnFilterCount +
@@ -332,10 +358,24 @@ export function DataTable<T extends Record<string, unknown>>({
     }
 
     if (columnFilters) {
-      for (const col of filterableColumns) {
-        const val = columnFilterValues[col.key];
-        if (!val) continue;
-        data = data.filter((row) => getColumnFilterValue(row, col) === val);
+      for (const [key, filter] of Object.entries(columnFilterValues)) {
+        if (!isFilterActive(filter)) continue;
+        const col = colByKey.get(key);
+        if (!col) continue;
+        if (filter.type === "category") {
+          const set = new Set(filter.values);
+          data = data.filter((row) => set.has(getColumnFilterValue(row, col)));
+        } else {
+          const min = parseAmountInput(filter.min);
+          const max = parseAmountInput(filter.max);
+          data = data.filter((row) => {
+            const v = getColumnNumber(row, col);
+            if (v == null) return false;
+            if (min != null && v < min) return false;
+            if (max != null && v > max) return false;
+            return true;
+          });
+        }
       }
     }
 
@@ -371,6 +411,7 @@ export function DataTable<T extends Record<string, unknown>>({
     columnFilters,
     columnFilterValues,
     filterableColumns,
+    colByKey,
     hasAmountFilter,
     amountFilter,
     amountField,
@@ -399,44 +440,93 @@ export function DataTable<T extends Record<string, unknown>>({
     sortableColumns.length ||
     columnFilters;
 
-  const toolbarColumnFilters = useMemo(
-    () =>
-      columnFilters
-        ? filterableColumns.map((col) => ({
-            key: col.key,
-            label: col.label,
-            value: columnFilterValues[col.key] ?? "",
-            options: columnFilterOptions[col.key] ?? [],
-            onChange: (value: string) =>
-              setColumnFilterValues((prev) => ({ ...prev, [col.key]: value })),
-          }))
-        : undefined,
-    [columnFilters, filterableColumns, columnFilterValues, columnFilterOptions]
-  );
+  const setColumnFilter = useCallback((key: string, filter: ColFilter | null) => {
+    setColumnFilterValues((prev) => {
+      if (filter === null) {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      }
+      return { ...prev, [key]: filter };
+    });
+  }, []);
+
+  // Inline filter dropdowns: per-column facets (single-select) + custom filters.
+  const toolbarSelects: ToolbarSelect[] = [
+    ...(columnFilters
+      ? facetColumns
+          .filter((fc) => fc.type === "category")
+          .map((fc) => {
+            const cur = columnFilterValues[fc.key];
+            return {
+              key: fc.key,
+              label: fc.label,
+              value: cur && cur.type === "category" ? cur.values[0] ?? "" : "",
+              options: (fc.options ?? []).map((o) => o.value),
+              onChange: (v: string) => setColumnFilter(fc.key, v ? { type: "category", values: [v] } : null),
+            };
+          })
+      : []),
+    ...(filters ?? []).map((f) => ({
+      key: f.key,
+      label: f.label,
+      value: filterValues[f.key] ?? "",
+      options: filterOptions[f.key] ?? [],
+      onChange: (v: string) =>
+        setFilterValues((prev) => {
+          if (!v) {
+            const next = { ...prev };
+            delete next[f.key];
+            return next;
+          }
+          return { ...prev, [f.key]: v };
+        }),
+    })),
+  ];
+
+  const toggleSort = (key: string) => {
+    if (sortKey === key) setAsc(!asc);
+    else {
+      setSortKey(key);
+      setAsc(true);
+    }
+  };
 
   return (
     <div className="space-y-3">
       {showToolbar ? (
-        <TableToolbar
+        <DataTableToolbar
           showSearch={Boolean(searchKeys?.length)}
           searchPlaceholder={searchPlaceholder}
           query={query}
           onQueryChange={setQuery}
-          columnFilters={toolbarColumnFilters}
-          amountFields={amountFilter?.fields.map((f) => ({ id: f.id, label: f.label }))}
-          amountField={amountField}
-          onAmountFieldChange={setAmountField}
-          amountMin={amountMin}
-          amountMax={amountMax}
-          onAmountMinChange={setAmountMin}
-          onAmountMaxChange={setAmountMax}
-          sortableColumns={sortableColumns.map((c) => ({ key: c.key, label: c.label }))}
-          sortKey={sortKey}
-          onSortKeyChange={setSortKey}
-          asc={asc}
-          onAscChange={setAsc}
-          showSort={!preserveOrder && sortableColumns.length > 0}
-          activeFilterCount={activeFilterCount + (query.trim() ? 1 : 0)}
+          selects={toolbarSelects}
+          amount={
+            amountFilter?.fields.length
+              ? {
+                  fields: amountFilter.fields.map((f) => ({ id: f.id, label: f.label })),
+                  field: amountField,
+                  onField: setAmountField,
+                  min: amountMin,
+                  max: amountMax,
+                  onMin: setAmountMin,
+                  onMax: setAmountMax,
+                  active: hasAmountFilter,
+                }
+              : undefined
+          }
+          sort={
+            !preserveOrder && sortableColumns.length > 0
+              ? {
+                  columns: sortableColumns.map((c) => ({ key: c.key, label: c.label })),
+                  sortKey,
+                  asc,
+                  onToggle: toggleSort,
+                  onDir: setAsc,
+                }
+              : undefined
+          }
+          count={filtered.length}
           hasActiveFilters={hasActiveFilters}
           onClear={clearFilters}
         />
@@ -445,11 +535,11 @@ export function DataTable<T extends Record<string, unknown>>({
       <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-sm">
         <TableHorizontalScroll>
           <table className="w-full text-sm" style={{ minWidth: minTableWidth }}>
-            <thead className="sticky top-0 z-[1] bg-[var(--muted)]/95 backdrop-blur-sm">
+            <thead className="sticky top-0 z-[1] bg-[var(--accent)] backdrop-blur-sm">
               <tr className="border-b border-[var(--border)] text-left text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
                 {columns.map((col) => {
                   const sortable = !preserveOrder && col.sortable !== false && col.key !== "id" && col.key !== "sil";
-                  const colFilterActive = Boolean(columnFilterValues[col.key]);
+                  const colFilterActive = isFilterActive(columnFilterValues[col.key]);
                   return (
                     <th
                       key={col.key}

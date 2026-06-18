@@ -15,7 +15,7 @@ export function PageShell({
     <>
       <Topbar title={title} description={description} />
       <main className="flex-1">
-        <div className="mx-auto max-w-[1600px] space-y-6 p-4 sm:p-6">
+        <div className="space-y-6 p-4 sm:p-6">
           {actions && (
             <div className="flex flex-wrap items-center justify-end gap-2">{actions}</div>
           )}

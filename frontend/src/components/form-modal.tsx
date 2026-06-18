@@ -1,9 +1,15 @@
 "use client";
 
-import { useEffect, type FormEvent, type ReactNode } from "react";
-import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 export function FormSection({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -27,6 +33,11 @@ type FormModalProps = {
   children: ReactNode;
 };
 
+/**
+ * Shared record modal, built on the shadcn/ui Dialog (Radix): focus-trapping,
+ * scroll-lock and Escape handling come for free. A sticky header sits above a
+ * scrollable form body; closing is blocked while a submit is `pending`.
+ */
 export function FormModal({
   title,
   description,
@@ -37,57 +48,29 @@ export function FormModal({
   maxWidth = "max-w-3xl",
   children,
 }: FormModalProps) {
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && !pending) onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, pending]);
-
-  const modal = (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !pending) onClose();
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !pending) onClose();
       }}
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="form-modal-title"
-        className={`max-h-[92vh] w-full ${maxWidth} overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-2xl`}
+      <DialogContent
+        showClose={!pending}
+        className={cn("flex max-h-[92vh] flex-col gap-0 overflow-hidden p-0", maxWidth)}
+        onInteractOutside={(e) => {
+          if (pending) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (pending) e.preventDefault();
+        }}
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border)] bg-[var(--card)] px-6 py-4">
-          <div>
-            <h3 id="form-modal-title" className="text-lg font-semibold">
-              {title}
-            </h3>
-            {description && (
-              <p className="mt-0.5 text-sm text-[var(--muted-foreground)]">{description}</p>
-            )}
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            disabled={pending}
-            onClick={onClose}
-            aria-label="Kapat"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
+        <DialogHeader className="shrink-0 border-b border-[var(--border)] px-6 py-4">
+          <DialogTitle>{title}</DialogTitle>
+          {description && <DialogDescription>{description}</DialogDescription>}
+        </DialogHeader>
 
-        <form onSubmit={onSubmit} className="space-y-4 p-6">
+        <form onSubmit={onSubmit} className="flex-1 space-y-4 overflow-y-auto p-6">
           {children}
           <div className="flex flex-col-reverse gap-2 border-t border-[var(--border)] pt-4 sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" disabled={pending} onClick={onClose}>
@@ -98,9 +81,7 @@ export function FormModal({
             </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
-
-  return createPortal(modal, document.body);
 }

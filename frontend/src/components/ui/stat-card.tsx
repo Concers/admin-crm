@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { TrendingDown, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -10,19 +11,25 @@ const accentMap = {
   indigo: "bg-indigo-50 text-indigo-600 ring-indigo-100",
 } as const;
 
+/** Önceki döneme göre değişim göstergesi. */
+export type StatTrend = { value: number; label?: string };
+
 export function StatCard({
   label,
   value,
   icon: Icon,
   accent = "blue",
   subtext,
+  trend,
 }: {
   label: string;
   value: string | number;
   icon: LucideIcon;
   accent?: keyof typeof accentMap;
   subtext?: string;
+  trend?: StatTrend;
 }) {
+  const up = trend ? trend.value >= 0 : false;
   return (
     <Card className="transition-shadow hover:shadow-md">
       <CardContent className="flex items-start justify-between gap-3 py-4">
@@ -33,8 +40,22 @@ export function StatCard({
           <p className="mt-1.5 text-xl font-semibold tabular-nums tracking-tight sm:text-2xl">
             {value}
           </p>
-          {subtext && (
-            <p className="mt-1 text-xs text-[var(--muted-foreground)]">{subtext}</p>
+          {trend ? (
+            <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+              <span
+                className={cn(
+                  "inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-medium tabular-nums",
+                  up ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                )}
+              >
+                {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                {up ? "+" : ""}
+                {trend.value.toFixed(1)}%
+              </span>
+              {trend.label && <span className="text-[var(--muted-foreground)]">{trend.label}</span>}
+            </p>
+          ) : (
+            subtext && <p className="mt-1 text-xs text-[var(--muted-foreground)]">{subtext}</p>
           )}
         </div>
         <div
