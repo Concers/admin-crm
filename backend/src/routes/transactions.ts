@@ -16,9 +16,11 @@ import {
   calcPurchaseTotals,
   calcSaleCosting,
   parseDate,
+  sortExpensesByExcelRow,
   toNumber,
 } from "../lib/calculations.js";
 import { computeSaleCosts, getProductStock } from "../lib/costing.js";
+import { parseInvoiceNoFromNotes } from "../lib/expenseInvoice.js";
 import { parseListQuery, dateRangeWhere, paginate } from "../lib/query.js";
 import { assertPeriodOpen } from "../lib/periodLock.js";
 
@@ -83,7 +85,7 @@ transactionsRouter.get(
 );
 
 /** Resolve + cost a sale payload from a request body. Returns null on bad input. */
-async function buildSaleData(body: Record<string, unknown>) {
+async function buildSaleData(body: Record<string, unknown>, saleId?: number) {
   const date = parseDate(body.date);
   const productName = String(body.productName ?? "").trim();
   const customerName = String(body.customerName ?? "").trim();
@@ -97,7 +99,7 @@ async function buildSaleData(body: Record<string, unknown>) {
   const unitPrice = toNumber(body.unitPrice);
   const vatRate = toNumber(body.vatRate, 0.2);
   const totals = calcSaleCosting({ unitPrice, quantity, vatRate });
-  const cost = await computeSaleCosts(prisma, { productId, date, quantity, unitPrice });
+  const cost = await computeSaleCosts(prisma, { productId, date, quantity, unitPrice, saleId });
 
   return {
     date,
@@ -117,8 +119,8 @@ async function buildSaleData(body: Record<string, unknown>) {
     overheadUnitCost: cost.overheadUnitCost,
     totalUnitCost: cost.totalUnitCost,
     profitMargin: cost.profitMargin,
-    periodMonth: date.getMonth() + 1,
-    periodYear: date.getFullYear(),
+    periodMonth: date.getUTCMonth() + 1,
+    periodYear: date.getUTCFullYear(),
   };
 }
 
@@ -163,7 +165,7 @@ transactionsRouter.put(
     if (!existing) return res.status(404).json({ error: "not_found" });
 
     const body = req.body ?? {};
-    const data = await buildSaleData(body);
+    const data = await buildSaleData(body, id);
     if (!data) return res.status(400).json({ error: "date, productName, customerName and quantity are required" });
     if (!(await assertPeriodOpen(res, existing.date, data.date))) return;
 
@@ -317,9 +319,8 @@ transactionsRouter.get(
   "/expenses",
   requireRole("ADMIN"),
   asyncHandler(async (_req, res) => {
-    res.json(
-      await prisma.expense.findMany({ orderBy: { date: "desc" }, include: { product: true, partner: true } }),
-    );
+    const rows = await prisma.expense.findMany({ include: { product: true, partner: true } });
+    res.json(sortExpensesByExcelRow(rows));
   }),
 );
 
@@ -356,6 +357,7 @@ async function buildExpenseData(body: Record<string, unknown>) {
     totalAmount: toNumber(body.totalAmount),
     paidAmount,
     notes: (body.notes as string) || null,
+    invoiceNo: String(body.invoiceNo ?? "").trim() || parseInvoiceNoFromNotes((body.notes as string) || null),
     durationMonths: amort.durationMonths,
     monthlyShare: amort.monthlyShare,
     startMonth: amort.startMonth,

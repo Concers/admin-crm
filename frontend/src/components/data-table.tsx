@@ -1,121 +1,547 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { TableToolbar } from "@/components/table-toolbar";
+import { uniqueStrings } from "@/lib/utils";
 
 export type Column<T> = {
   key: string;
   label: string;
   render?: (row: T) => React.ReactNode;
   sortable?: boolean;
+  /** false ise sütun filtresi gösterilmez */
+  filterable?: boolean;
+  /** Sıralama için ham değer (sayı, tarih ISO, vb.) */
+  sortValue?: (row: T) => string | number | null | undefined;
+  /** Filtre eşleştirmesi için değer (varsayılan: sortValue veya hücre metni) */
+  filterValue?: (row: T) => string;
+  align?: "left" | "right";
 };
+
+export type TableFilterDef<T> = {
+  key: keyof T & string;
+  label: string;
+  options?: string[];
+  getValue?: (row: T) => string;
+};
+
+export type AmountFilterField<T> = {
+  id: string;
+  label: string;
+  getValue: (row: T) => number;
+};
+
+function buildFilterOptions<T extends Record<string, unknown>>(
+  rows: T[],
+  def: TableFilterDef<T>
+): string[] {
+  if (def.options?.length) return def.options;
+  const values = rows
+    .map((r) => (def.getValue ? def.getValue(r) : String(r[def.key] ?? "")).trim())
+    .filter(Boolean);
+  return uniqueStrings(values);
+}
+
+function parseAmountInput(raw: string): number | null {
+  const cleaned = raw.trim().replace(/\./g, "").replace(",", ".");
+  if (!cleaned) return null;
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
+
+function getSortRaw<T extends Record<string, unknown>>(row: T, col: Column<T>): string | number {
+  const raw = col.sortValue ? col.sortValue(row) : row[col.key];
+  if (raw == null || raw === "" || raw === "-") return "";
+  if (typeof raw === "number") return raw;
+  const asNum = Number(String(raw).replace(/[^\d.-]/g, ""));
+  if (String(raw).match(/^\d{4}$/)) return asNum;
+  if (typeof raw === "string" && /^\d+([.,]\d+)?$/.test(raw.trim())) return asNum;
+  return String(raw).toLowerCase();
+}
+
+function compareSortValues(a: string | number, b: string | number, asc: boolean): number {
+  const bothNum =
+    typeof a === "number" && typeof b === "number" && !Number.isNaN(a) && !Number.isNaN(b);
+  if (bothNum) return asc ? a - b : b - a;
+
+  const sa = String(a);
+  const sb = String(b);
+  const cmp = sa.localeCompare(sb, "tr", { numeric: true });
+  return asc ? cmp : -cmp;
+}
+
+const SKIP_FILTER_KEYS = new Set(["id", "sil"]);
+
+function isFilterableColumn<T>(col: Column<T>) {
+  return Boolean(col.label?.trim()) && col.filterable !== false && !SKIP_FILTER_KEYS.has(col.key);
+}
+
+function getColumnFilterValue<T extends Record<string, unknown>>(row: T, col: Column<T>): string {
+  if (col.filterValue) return col.filterValue(row).trim();
+  if (col.sortValue) {
+    const v = col.sortValue(row);
+    return v != null && v !== "" ? String(v).trim() : "";
+  }
+  const raw = row[col.key];
+  return raw != null && raw !== "" ? String(raw).trim() : "";
+}
+
+function buildColumnFilterOptions<T extends Record<string, unknown>>(
+  rows: T[],
+  col: Column<T>
+): string[] {
+  const values = rows
+    .map((r) => getColumnFilterValue(r, col))
+    .filter((v) => v && v !== "—" && v !== "-");
+  const unique = uniqueStrings(values);
+  const allNumeric = unique.length > 0 && unique.every((v) => /^\d+$/.test(v));
+  if (allNumeric) return unique.sort((a, b) => Number(a) - Number(b));
+  return unique;
+}
+
+function TableHorizontalScroll({
+  children,
+}: {
+  children: React.ReactNode;
+  minWidth?: string;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+
+  const updateScrollButtons = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const hasOverflow = el.scrollWidth > el.clientWidth + 2;
+    setOverflows(hasOverflow);
+    setCanScrollLeft(el.scrollLeft > 2);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  }, []);
+
+  useEffect(() => {
+    updateScrollButtons();
+    const el = scrollRef.current;
+    if (!el) return;
+
+    el.addEventListener("scroll", updateScrollButtons, { passive: true });
+    const ro = new ResizeObserver(updateScrollButtons);
+    ro.observe(el);
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+
+    return () => {
+      el.removeEventListener("scroll", updateScrollButtons);
+      ro.disconnect();
+    };
+  }, [updateScrollButtons, children]);
+
+  function scrollStep(direction: -1 | 1) {
+    const el = scrollRef.current;
+    if (!el) return;
+    const step = Math.max(280, Math.round(el.clientWidth * 0.65));
+    el.scrollBy({ left: direction * step, behavior: "smooth" });
+  }
+
+  return (
+    <div className="relative">
+      {overflows && (
+        <div className="flex items-center justify-end gap-1 border-b border-[var(--border)] bg-[var(--muted)]/40 px-2 py-1.5">
+          <span className="mr-auto hidden text-xs text-[var(--muted-foreground)] sm:inline">
+            Geniş tabloda sağa-sola kaydırın
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            disabled={!canScrollLeft}
+            onClick={() => scrollStep(-1)}
+            aria-label="Sola kaydır"
+            title="Sola kaydır"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            disabled={!canScrollRight}
+            onClick={() => scrollStep(1)}
+            aria-label="Sağa kaydır"
+            title="Sağa kaydır"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      <div className="relative">
+        {overflows && canScrollLeft && (
+          <div
+            className="pointer-events-none absolute left-0 top-0 z-[2] h-full w-10 bg-gradient-to-r from-[var(--card)] to-transparent"
+            aria-hidden
+          />
+        )}
+        {overflows && canScrollRight && (
+          <div
+            className="pointer-events-none absolute right-0 top-0 z-[2] h-full w-10 bg-gradient-to-l from-[var(--card)] to-transparent"
+            aria-hidden
+          />
+        )}
+
+        {overflows && (
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              className="absolute left-1 top-1/2 z-[3] h-9 w-9 -translate-y-1/2 shadow-md disabled:opacity-0"
+              disabled={!canScrollLeft}
+              onClick={() => scrollStep(-1)}
+              aria-label="Sola kaydır"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              className="absolute right-1 top-1/2 z-[3] h-9 w-9 -translate-y-1/2 shadow-md disabled:opacity-0"
+              disabled={!canScrollRight}
+              onClick={() => scrollStep(1)}
+              aria-label="Sağa kaydır"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </>
+        )}
+
+        <div
+          ref={scrollRef}
+          className="table-scroll-x overflow-x-auto overscroll-x-contain scroll-smooth"
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function DataTable<T extends Record<string, unknown>>({
   rows,
   columns,
   onRowClick,
   searchKeys,
+  searchPlaceholder = "Tabloda ara…",
+  filters,
+  amountFilter,
+  columnFilters = true,
+  defaultSort,
   emptyText = "Kayıt bulunamadı.",
+  emptyHint = "Filtreleri temizleyin veya yeni kayıt ekleyin.",
+  minTableWidth = "600px",
+  preserveOrder = false,
 }: {
   rows: T[];
   columns: Column<T>[];
   onRowClick?: (row: T) => void;
   searchKeys?: (keyof T)[];
+  searchPlaceholder?: string;
+  filters?: TableFilterDef<T>[];
+  amountFilter?: { fields: AmountFilterField<T>[]; defaultField?: string };
+  /** Her sütun başlığı altında filtre (varsayılan: açık) */
+  columnFilters?: boolean;
+  defaultSort?: { key: string; asc: boolean };
   emptyText?: string;
+  emptyHint?: string;
+  minTableWidth?: string;
+  preserveOrder?: boolean;
 }) {
   const [query, setQuery] = useState("");
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [asc, setAsc] = useState(true);
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+  const [columnFilterValues, setColumnFilterValues] = useState<Record<string, string>>({});
+  const [amountField, setAmountField] = useState(
+    amountFilter?.defaultField ?? amountFilter?.fields[0]?.id ?? ""
+  );
+  const [amountMin, setAmountMin] = useState("");
+  const [amountMax, setAmountMax] = useState("");
+  const [sortKey, setSortKey] = useState<string | null>(defaultSort?.key ?? null);
+  const [asc, setAsc] = useState(defaultSort?.asc ?? true);
+
+  const filterableColumns = useMemo(
+    () => columns.filter(isFilterableColumn),
+    [columns]
+  );
+
+  const columnFilterOptions = useMemo(() => {
+    if (!columnFilters) return {};
+    const out: Record<string, string[]> = {};
+    for (const col of filterableColumns) {
+      out[col.key] = buildColumnFilterOptions(rows, col);
+    }
+    return out;
+  }, [rows, filterableColumns, columnFilters]);
+
+  const sortableColumns = useMemo(
+    () => columns.filter((c) => c.sortable !== false && c.key !== "id" && c.key !== "sil"),
+    [columns]
+  );
+
+  const filterOptions = useMemo(() => {
+    if (!filters?.length) return {};
+    const out: Record<string, string[]> = {};
+    for (const f of filters) {
+      out[f.key] = buildFilterOptions(rows, f);
+    }
+    return out;
+  }, [rows, filters]);
+
+  const minAmount = parseAmountInput(amountMin);
+  const maxAmount = parseAmountInput(amountMax);
+  const hasAmountFilter = minAmount != null || maxAmount != null;
+  const activeColumnFilterCount = Object.values(columnFilterValues).filter(Boolean).length;
+  const activeFilterCount =
+    Object.values(filterValues).filter(Boolean).length +
+    activeColumnFilterCount +
+    (hasAmountFilter ? 1 : 0);
+  const hasActiveFilters = Boolean(query.trim() || activeFilterCount > 0);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
     let data = rows;
-    if (q && searchKeys) {
+
+    if (q && searchKeys?.length) {
       data = data.filter((row) =>
-        searchKeys.some((k) =>
-          String(row[k] ?? "").toLowerCase().includes(q)
-        )
+        searchKeys.some((k) => String(row[k] ?? "").toLowerCase().includes(q))
       );
     }
-    if (sortKey) {
-      data = [...data].sort((a, b) => {
-        const av = String(a[sortKey] ?? "").toLowerCase();
-        const bv = String(b[sortKey] ?? "").toLowerCase();
-        return asc ? av.localeCompare(bv, "tr") : bv.localeCompare(av, "tr");
+
+    if (filters?.length) {
+      for (const f of filters) {
+        const val = filterValues[f.key];
+        if (!val) continue;
+        data = data.filter((row) => {
+          const cell = (f.getValue ? f.getValue(row) : String(row[f.key] ?? "")).trim();
+          return cell === val;
+        });
+      }
+    }
+
+    if (columnFilters) {
+      for (const col of filterableColumns) {
+        const val = columnFilterValues[col.key];
+        if (!val) continue;
+        data = data.filter((row) => getColumnFilterValue(row, col) === val);
+      }
+    }
+
+    if (hasAmountFilter && amountFilter?.fields.length) {
+      const field =
+        amountFilter.fields.find((f) => f.id === amountField) ?? amountFilter.fields[0];
+      data = data.filter((row) => {
+        const val = field.getValue(row);
+        if (minAmount != null && val < minAmount) return false;
+        if (maxAmount != null && val > maxAmount) return false;
+        return true;
       });
     }
+
+    if (!preserveOrder && sortKey) {
+      const col = columns.find((c) => c.key === sortKey);
+      if (col) {
+        data = [...data].sort((a, b) => {
+          const av = getSortRaw(a, col);
+          const bv = getSortRaw(b, col);
+          return compareSortValues(av, bv, asc);
+        });
+      }
+    }
+
     return data;
-  }, [rows, query, searchKeys, sortKey, asc]);
+  }, [
+    rows,
+    query,
+    searchKeys,
+    filters,
+    filterValues,
+    columnFilters,
+    columnFilterValues,
+    filterableColumns,
+    hasAmountFilter,
+    amountFilter,
+    amountField,
+    minAmount,
+    maxAmount,
+    sortKey,
+    asc,
+    preserveOrder,
+    columns,
+  ]);
+
+  function clearFilters() {
+    setQuery("");
+    setFilterValues({});
+    setColumnFilterValues({});
+    setAmountMin("");
+    setAmountMax("");
+    setSortKey(defaultSort?.key ?? null);
+    setAsc(defaultSort?.asc ?? true);
+  }
+
+  const showToolbar =
+    searchKeys?.length ||
+    filters?.length ||
+    amountFilter?.fields.length ||
+    sortableColumns.length ||
+    columnFilters;
+
+  const toolbarColumnFilters = useMemo(
+    () =>
+      columnFilters
+        ? filterableColumns.map((col) => ({
+            key: col.key,
+            label: col.label,
+            value: columnFilterValues[col.key] ?? "",
+            options: columnFilterOptions[col.key] ?? [],
+            onChange: (value: string) =>
+              setColumnFilterValues((prev) => ({ ...prev, [col.key]: value })),
+          }))
+        : undefined,
+    [columnFilters, filterableColumns, columnFilterValues, columnFilterOptions]
+  );
 
   return (
-    <div className="space-y-4">
-      {searchKeys && (
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Ara..."
-            className="pl-9"
-          />
-        </div>
-      )}
-      <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--card)]">
-        <table className="w-full min-w-[600px] text-sm">
-          <thead>
-            <tr className="border-b border-[var(--border)] bg-[var(--muted)] text-left text-[var(--muted-foreground)]">
-              {columns.map((col) => (
-                <th
-                  key={col.key}
-                  className={`px-4 py-3 font-medium ${col.sortable !== false ? "cursor-pointer select-none" : ""}`}
-                  onClick={() => {
-                    if (col.sortable === false) return;
-                    if (sortKey === col.key) setAsc(!asc);
-                    else {
-                      setSortKey(col.key);
-                      setAsc(true);
-                    }
-                  }}
-                >
-                  {col.label}
-                  {sortKey === col.key ? (asc ? " ↑" : " ↓") : ""}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 && (
-              <tr>
-                <td
-                  colSpan={columns.length}
-                  className="px-4 py-10 text-center text-[var(--muted-foreground)]"
-                >
-                  {emptyText}
-                </td>
+    <div className="space-y-3">
+      {showToolbar ? (
+        <TableToolbar
+          showSearch={Boolean(searchKeys?.length)}
+          searchPlaceholder={searchPlaceholder}
+          query={query}
+          onQueryChange={setQuery}
+          columnFilters={toolbarColumnFilters}
+          amountFields={amountFilter?.fields.map((f) => ({ id: f.id, label: f.label }))}
+          amountField={amountField}
+          onAmountFieldChange={setAmountField}
+          amountMin={amountMin}
+          amountMax={amountMax}
+          onAmountMinChange={setAmountMin}
+          onAmountMaxChange={setAmountMax}
+          sortableColumns={sortableColumns.map((c) => ({ key: c.key, label: c.label }))}
+          sortKey={sortKey}
+          onSortKeyChange={setSortKey}
+          asc={asc}
+          onAscChange={setAsc}
+          showSort={!preserveOrder && sortableColumns.length > 0}
+          activeFilterCount={activeFilterCount + (query.trim() ? 1 : 0)}
+          hasActiveFilters={hasActiveFilters}
+          onClear={clearFilters}
+        />
+      ) : null}
+
+      <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-sm">
+        <TableHorizontalScroll>
+          <table className="w-full text-sm" style={{ minWidth: minTableWidth }}>
+            <thead className="sticky top-0 z-[1] bg-[var(--muted)]/95 backdrop-blur-sm">
+              <tr className="border-b border-[var(--border)] text-left text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+                {columns.map((col) => {
+                  const sortable = !preserveOrder && col.sortable !== false && col.key !== "id" && col.key !== "sil";
+                  const colFilterActive = Boolean(columnFilterValues[col.key]);
+                  return (
+                    <th
+                      key={col.key}
+                      className={`whitespace-nowrap px-4 py-3 font-medium ${
+                        col.align === "right" ? "text-right" : ""
+                      } ${sortable ? "cursor-pointer select-none hover:text-[var(--foreground)]" : ""}`}
+                      onClick={() => {
+                        if (!sortable) return;
+                        if (sortKey === col.key) setAsc(!asc);
+                        else {
+                          setSortKey(col.key);
+                          setAsc(true);
+                        }
+                      }}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        {col.label}
+                        {colFilterActive && (
+                          <span
+                            className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--primary)]"
+                            title="Filtre aktif"
+                          />
+                        )}
+                        {sortKey === col.key ? (asc ? " ↑" : " ↓") : ""}
+                      </span>
+                    </th>
+                  );
+                })}
               </tr>
-            )}
-            {filtered.map((row, i) => (
-              <tr
-                key={i}
-                onClick={() => onRowClick?.(row)}
-                className={`border-b border-[var(--border)] last:border-0 ${onRowClick ? "cursor-pointer hover:bg-[var(--muted)]" : ""}`}
-              >
-                {columns.map((col) => (
-                  <td key={col.key} className="px-4 py-3">
-                    {col.render
-                      ? col.render(row)
-                      : String(row[col.key] ?? "-")}
+            </thead>
+            <tbody>
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={columns.length} className="px-4 py-14 text-center">
+                    <div className="mx-auto flex max-w-sm flex-col items-center gap-2 text-[var(--muted-foreground)]">
+                      <Inbox className="h-10 w-10 opacity-40" />
+                      <p className="font-medium text-[var(--foreground)]">{emptyText}</p>
+                      <p className="text-xs">{emptyHint}</p>
+                      {hasActiveFilters && (
+                        <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
+                          Filtreleri temizle
+                        </Button>
+                      )}
+                    </div>
                   </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </tr>
+              )}
+              {filtered.map((row, i) => (
+                <tr
+                  key={i}
+                  onClick={() => onRowClick?.(row)}
+                  className={`border-b border-[var(--border)]/80 transition-colors last:border-0 ${
+                    i % 2 === 1 ? "bg-[var(--muted)]/20" : ""
+                  } ${onRowClick ? "cursor-pointer hover:bg-[var(--accent)]" : "hover:bg-[var(--muted)]/35"}`}
+                >
+                  {columns.map((col) => (
+                    <td
+                      key={col.key}
+                      className={`px-4 py-2.5 align-middle ${
+                        col.align === "right" ? "text-right tabular-nums" : ""
+                      }`}
+                    >
+                      {col.render ? col.render(row) : String(row[col.key] ?? "—")}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableHorizontalScroll>
       </div>
-      <p className="text-sm text-[var(--muted-foreground)]">
-        {filtered.length} kayıt gösteriliyor
-      </p>
+
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--muted-foreground)]">
+        <p>
+          <Badge tone="blue" className="tabular-nums">
+            {filtered.length}
+          </Badge>
+          <span className="ml-1.5">kayıt gösteriliyor</span>
+          {rows.length !== filtered.length && (
+            <span className="ml-1">/ {rows.length} toplam</span>
+          )}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {sortKey && !preserveOrder && (
+            <span>
+              Sıralama: {sortableColumns.find((c) => c.key === sortKey)?.label ?? sortKey}{" "}
+              {asc ? "↑" : "↓"}
+            </span>
+          )}
+          {activeFilterCount > 0 && <span>{activeFilterCount} filtre aktif</span>}
+        </div>
+      </div>
     </div>
   );
 }

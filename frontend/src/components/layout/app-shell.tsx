@@ -2,12 +2,9 @@
 
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
+import { LayoutProvider } from "./layout-context";
 import type { UserRole } from "@/lib/roles";
 
-/**
- * Renders the authenticated app chrome (sidebar + content). The login page is
- * full-screen and chrome-less, so we bypass the sidebar there.
- */
 export function AppShell({
   role,
   userName,
@@ -22,9 +19,11 @@ export function AppShell({
   if (pathname === "/login") return <>{children}</>;
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar role={role} userName={userName} />
-      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
-    </div>
+    <LayoutProvider role={role} userName={userName}>
+      <div className="flex min-h-screen bg-[var(--background)]">
+        <Sidebar role={role} userName={userName} />
+        <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+      </div>
+    </LayoutProvider>
   );
 }

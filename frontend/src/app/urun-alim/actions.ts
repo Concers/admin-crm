@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createPurchase, deletePurchase, updatePurchase } from "@/lib/api";
+import { dateInputToApi } from "@/lib/dates";
 
 function num(v: FormDataEntryValue | null, fallback = 0) {
   const n = Number(v);
@@ -12,12 +13,12 @@ export async function createAlim(formData: FormData) {
   const tarih = String(formData.get("tarih") ?? "").trim();
   const urunAdi = String(formData.get("urunAdi") ?? "").trim();
   const alimAdeti = num(formData.get("alimAdeti"));
+  const date = dateInputToApi(tarih);
 
-  const parsed = new Date(tarih);
-  if (!tarih || Number.isNaN(parsed.getTime()) || !urunAdi || alimAdeti <= 0) return;
+  if (!date || !urunAdi || alimAdeti <= 0) return;
 
   await createPurchase({
-    date: parsed.toISOString(),
+    date,
     productName: urunAdi,
     supplierName: String(formData.get("tedarikci") ?? ""),
     quantity: alimAdeti,
@@ -36,15 +37,15 @@ export async function updateAlim(id: number, formData: FormData): Promise<void |
   const tarih = String(formData.get("tarih") ?? "").trim();
   const urunAdi = String(formData.get("urunAdi") ?? "").trim();
   const alimAdeti = num(formData.get("alimAdeti"));
+  const date = dateInputToApi(tarih);
 
-  const parsed = new Date(tarih);
-  if (!tarih || Number.isNaN(parsed.getTime()) || !urunAdi || alimAdeti <= 0) {
+  if (!date || !urunAdi || alimAdeti <= 0) {
     return { error: "Tarih, ürün ve adet zorunludur." };
   }
 
   try {
     await updatePurchase(id, {
-      date: parsed.toISOString(),
+      date,
       productName: urunAdi,
       supplierName: String(formData.get("tedarikci") ?? ""),
       quantity: alimAdeti,

@@ -29,7 +29,7 @@ export default async function MusteriRaporPage({
         <div><p className="text-sm text-[var(--muted-foreground)]">Alacak</p>
           <p className="text-xl font-semibold">{formatCurrency(rapor.receivable)}</p></div>
       </CardContent></Card>
-      <DataTable rows={musteriler.map((m) => ({ ad: m.name }))} searchKeys={["ad"]} columns={[
+      <DataTable rows={musteriler.map((m) => ({ ad: m.name }))} searchKeys={["ad"]} searchPlaceholder="Müşteri ara…" defaultSort={{ key: "ad", asc: true }} columns={[
         { key: "ad", label: "Müşteri" },
       ]} />
     </PageShell>

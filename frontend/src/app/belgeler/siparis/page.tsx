@@ -1,19 +1,12 @@
 import { PageShell } from "@/components/page-shell";
-import { Card, CardContent } from "@/components/ui/card";
+import { StatCard, PanelCard } from "@/components/ui/stat-card";
+import { ClipboardList, Package, ShoppingCart, TrendingUp } from "lucide-react";
 import { getOrders, getPartners, getProducts } from "@/lib/api";
-import { formatCurrency, formatDate } from "@/lib/calculations";
-import { SiparisForm } from "./siparis-form";
-import { SiparisList, type SiparisRow } from "./siparis-list";
+import { formatCurrency, calendarMonth, calendarYear } from "@/lib/utils";
+import { SiparisWorkspace } from "./siparis-workspace";
+import { mapSiparisRows } from "./siparis-rows";
 
 export const dynamic = "force-dynamic";
-
-const DOC_TYPE: Record<string, string> = { SALES: "Satış", PURCHASE: "Alım" };
-const STATUS: Record<string, string> = {
-  DRAFT: "Taslak",
-  CONFIRMED: "Onaylı",
-  DELIVERED: "Teslim",
-  CANCELLED: "İptal",
-};
 
 export default async function SiparisPage() {
   const [orders, partners, products] = await Promise.all([
@@ -23,29 +16,64 @@ export default async function SiparisPage() {
   ]);
 
   const partnerName = new Map(partners.map((p) => [p.id, p.name]));
+  const partnerOpts = partners.map((p) => ({ id: p.id, name: p.name }));
+  const productOpts = products.map((p) => ({ id: p.id, name: p.name }));
+  const rows = mapSiparisRows(orders, partnerName);
 
-  const rows: SiparisRow[] = orders.map((o) => ({
-    id: o.id,
-    tarih: formatDate(new Date(o.date)),
-    tur: DOC_TYPE[o.docType] ?? o.docType,
-    cari: partnerName.get(o.partnerId) ?? String(o.partnerId),
-    durum: STATUS[o.status] ?? o.status,
-    toplam: formatCurrency(o.totalAmount),
-    kdvDahil: formatCurrency(o.vatIncludedAmount),
-  }));
+  const now = new Date();
+  const buAy = now.getMonth() + 1;
+  const buYil = now.getFullYear();
+
+  const ozet = {
+    kayit: orders.length,
+    toplamTutar: orders.reduce((acc, o) => acc + o.totalAmount, 0),
+    satisSayisi: orders.filter((o) => o.docType === "SALES").length,
+    buAyTutar: orders
+      .filter((o) => calendarMonth(o.date) === buAy && calendarYear(o.date) === buYil)
+      .reduce((acc, o) => acc + o.totalAmount, 0),
+  };
 
   return (
-    <PageShell title="Siparişler">
-      <Card>
-        <CardContent>
-          <h3 className="mb-4 font-semibold">Yeni Sipariş</h3>
-          <SiparisForm
-            partners={partners.map((p) => ({ id: p.id, name: p.name }))}
-            products={products.map((p) => ({ id: p.id, name: p.name }))}
-          />
-        </CardContent>
-      </Card>
-      <SiparisList rows={rows} />
+    <PageShell
+      title="Siparişler"
+      description="Satış ve alım siparişlerini kaydedin, takip edin ve düzenleyin"
+    >
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:gap-4">
+        <StatCard
+          label="Sipariş Kaydı"
+          value={ozet.kayit}
+          icon={ClipboardList}
+          accent="indigo"
+          subtext={`${ozet.satisSayisi} satış siparişi`}
+        />
+        <StatCard
+          label="Toplam Tutar"
+          value={formatCurrency(ozet.toplamTutar)}
+          icon={TrendingUp}
+          accent="blue"
+        />
+        <StatCard
+          label="Bu Ay"
+          value={formatCurrency(ozet.buAyTutar)}
+          icon={ShoppingCart}
+          accent="amber"
+        />
+        <StatCard
+          label="Ortalama Sipariş"
+          value={formatCurrency(ozet.kayit > 0 ? ozet.toplamTutar / ozet.kayit : 0)}
+          icon={Package}
+          accent="emerald"
+        />
+      </div>
+
+      <PanelCard
+        icon={ClipboardList}
+        title="Sipariş Kayıtları"
+        description="Tarih, cari, durum, kalemler ve tutarlar — satıra tıklayarak düzenleyin"
+        accent="indigo"
+      >
+        <SiparisWorkspace rows={rows} partners={partnerOpts} products={productOpts} />
+      </PanelCard>
     </PageShell>
   );
 }

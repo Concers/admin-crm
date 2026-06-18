@@ -52,7 +52,7 @@ export default async function UrunRaporPage({
         </CardContent></Card>
       )}
       {!urunAdi && (
-        <DataTable rows={urunler.map((u) => ({ ad: u.name }))} searchKeys={["ad"]} columns={[
+        <DataTable rows={urunler.map((u) => ({ ad: u.name }))} searchKeys={["ad"]} searchPlaceholder="Ürün ara…" defaultSort={{ key: "ad", asc: true }} columns={[
           { key: "ad", label: "Ürün (detay için URL'ye ?urun= eklenebilir)" },
         ]} />
       )}

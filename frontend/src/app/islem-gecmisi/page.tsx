@@ -26,6 +26,8 @@ export default async function IslemGecmisiPage() {
       <DataTable
         rows={rows}
         searchKeys={["kullanici", "kayit", "detay"]}
+        searchPlaceholder="Kullanıcı veya kayıt ara…"
+        defaultSort={{ key: "tarih", asc: false }}
         columns={[
           { key: "tarih", label: "Tarih" },
           { key: "kullanici", label: "Kullanıcı" },

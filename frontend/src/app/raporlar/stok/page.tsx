@@ -15,7 +15,7 @@ export default async function StokRaporPage() {
   }));
   return (
     <PageShell title="Stok Raporu">
-      <DataTable rows={rows} searchKeys={["urun", "raf"]} columns={[
+      <DataTable rows={rows} searchKeys={["urun", "raf"]} searchPlaceholder="Ürün veya raf ara…" columns={[
         { key: "urun", label: "Ürün" },
         { key: "raf", label: "Hangi Raf" },
         { key: "toplamAlim", label: "Toplam Alım" },

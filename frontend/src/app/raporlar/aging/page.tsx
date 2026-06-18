@@ -24,6 +24,7 @@ export default async function AgingRaporPage() {
       <DataTable
         rows={rows}
         searchKeys={["ad"]}
+        searchPlaceholder="Cari ara…"
         columns={[
           { key: "ad", label: "Cari" },
           { key: "d0_30", label: "0-30 Gün" },

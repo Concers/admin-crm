@@ -23,6 +23,7 @@ export default async function TedarikciBorcPage() {
       <DataTable
         rows={rows}
         searchKeys={["ad"]}
+        searchPlaceholder="Cari ara…"
         columns={[
           { key: "ad", label: "Cari" },
           { key: "alimToplam", label: "Alım Toplamı" },

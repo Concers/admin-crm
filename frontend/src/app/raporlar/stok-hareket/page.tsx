@@ -52,6 +52,9 @@ export default async function StokHareketPage({
       )}
       <DataTable
         rows={rows}
+        searchKeys={["tur", "neden"]}
+        searchPlaceholder="Hareket türü veya açıklama ara…"
+        defaultSort={{ key: "tarih", asc: false }}
         emptyText="Bu ürün için stok hareketi bulunamadı."
         columns={[
           { key: "tarih", label: "Tarih" },

@@ -14,10 +14,19 @@ const emptyRow: Row = { productId: "", price: "" };
 /** Client-side price-list item editor; serialises to a hidden `items` JSON input. */
 export function ItemsEditor({
   products,
+  initialItems,
 }: {
   products: { id: number; name: string }[];
+  initialItems?: { productId: number; price: number }[];
 }) {
-  const [rows, setRows] = useState<Row[]>([{ ...emptyRow }]);
+  const [rows, setRows] = useState<Row[]>(() =>
+    initialItems?.length
+      ? initialItems.map((i) => ({
+          productId: String(i.productId),
+          price: String(i.price),
+        }))
+      : [{ ...emptyRow }]
+  );
 
   function update(i: number, patch: Partial<Row>) {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -38,12 +47,14 @@ export function ItemsEditor({
   return (
     <div className="space-y-3">
       <input type="hidden" name="items" value={serialised} />
-      <Label>Kalemler *</Label>
+      <Label className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+        Kalemler *
+      </Label>
       <div className="space-y-2">
         {rows.map((row, i) => (
           <div
             key={i}
-            className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_140px_auto] sm:items-end"
+            className="grid grid-cols-1 gap-2 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 sm:grid-cols-[1fr_120px_auto] sm:items-end"
           >
             <Select
               value={row.productId}
@@ -79,10 +90,15 @@ export function ItemsEditor({
           </div>
         ))}
       </div>
-      <Button type="button" variant="outline" size="sm" onClick={addRow}>
-        <Plus className="h-4 w-4" />
-        Kalem Ekle
-      </Button>
+      <div className="flex items-center justify-between border-t border-[var(--border)] pt-3">
+        <Button type="button" variant="outline" size="sm" onClick={addRow}>
+          <Plus className="h-4 w-4" />
+          Kalem Ekle
+        </Button>
+        <span className="text-sm font-medium text-[var(--muted-foreground)]">
+          {rows.filter((r) => r.productId && Number(r.price) > 0).length} kalem
+        </span>
+      </div>
     </div>
   );
 }

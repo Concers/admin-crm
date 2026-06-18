@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSale, deleteSale, updateSale } from "@/lib/api";
+import { dateInputToApi } from "@/lib/dates";
 
 function num(v: FormDataEntryValue | null, fallback = 0) {
   const n = Number(v);
@@ -14,14 +15,14 @@ export async function createSatis(formData: FormData): Promise<void | { error?: 
   const musteriAdi = String(formData.get("musteri") ?? "").trim();
   const satisAdeti = num(formData.get("satisAdeti"));
 
-  const parsed = new Date(tarih);
-  if (!tarih || Number.isNaN(parsed.getTime()) || !urunAdi || !musteriAdi || satisAdeti <= 0) {
+  const date = dateInputToApi(tarih);
+  if (!date || !urunAdi || !musteriAdi || satisAdeti <= 0) {
     return { error: "Tarih, ürün, müşteri ve adet zorunludur." };
   }
 
   try {
     await createSale({
-      date: parsed.toISOString(),
+      date,
       productName: urunAdi,
       customerName: musteriAdi,
       quantity: satisAdeti,
@@ -45,14 +46,14 @@ export async function updateSatis(id: number, formData: FormData): Promise<void 
   const musteriAdi = String(formData.get("musteri") ?? "").trim();
   const satisAdeti = num(formData.get("satisAdeti"));
 
-  const parsed = new Date(tarih);
-  if (!tarih || Number.isNaN(parsed.getTime()) || !urunAdi || !musteriAdi || satisAdeti <= 0) {
+  const date = dateInputToApi(tarih);
+  if (!date || !urunAdi || !musteriAdi || satisAdeti <= 0) {
     return { error: "Tarih, ürün, müşteri ve adet zorunludur." };
   }
 
   try {
     await updateSale(id, {
-      date: parsed.toISOString(),
+      date,
       productName: urunAdi,
       customerName: musteriAdi,
       quantity: satisAdeti,

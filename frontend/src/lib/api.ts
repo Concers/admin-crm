@@ -21,10 +21,15 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    headers: await authHeaders(),
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      headers: await authHeaders(),
+      cache: "no-store",
+    });
+  } catch {
+    throw new Error("API sunucusuna bağlanılamadı. Backend çalışıyor mu? (npm run dev:backend)");
+  }
   // An expired/invalid session (e.g. after a JWT_SECRET change) → send the user
   // to login instead of crashing the page with a raw fetch error.
   if (res.status === 401) redirect("/login?expired=1");
@@ -33,15 +38,20 @@ async function apiGet<T>(path: string): Promise<T> {
 }
 
 async function apiSend<T>(method: "POST" | "PUT" | "DELETE", path: string, body?: Json): Promise<T | null> {
-  const res = await fetch(`${API_URL}${path}`, {
-    method,
-    headers: {
-      ...(body ? { "Content-Type": "application/json" } : {}),
-      ...(await authHeaders()),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      method,
+      headers: {
+        ...(body ? { "Content-Type": "application/json" } : {}),
+        ...(await authHeaders()),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      cache: "no-store",
+    });
+  } catch {
+    throw new Error("API sunucusuna bağlanılamadı. Backend çalışıyor mu? (npm run dev:backend)");
+  }
   if (res.status === 401) throw new Error("Oturum süresi doldu. Lütfen yeniden giriş yapın.");
   if (!res.ok) {
     // Surface the backend's human-readable message (e.g. stock errors) so the
@@ -101,6 +111,9 @@ export interface Sale {
   totalUnitCost: number | null;
   profitMargin: number | null;
   notes: string | null;
+  shelfLocation?: string | null;
+  periodMonth?: number | null;
+  periodYear?: number | null;
   product: Product;
   customer: Partner;
 }
@@ -129,7 +142,16 @@ export interface Expense {
   paidAmount: number;
   durationMonths: number | null;
   monthlyShare: number | null;
+  startMonth: number | null;
+  startYear: number | null;
+  endMonth: number | null;
+  endYear: number | null;
+  startDate: string | null;
+  endDate: string | null;
+  excelRow: number | null;
+  excelMonthLabel: string | null;
   notes: string | null;
+  invoiceNo: string | null;
   product?: Product | null;
   partner?: Partner | null;
 }
@@ -146,11 +168,20 @@ export interface CashFlow {
 export interface ProductDevelopment {
   id: number;
   productName: string;
+  productId?: number | null;
   startDate: string | null;
   supplierName: string | null;
   orderQuantity: number | null;
   productClass: string | null;
+  isRawMaterial: boolean | null;
+  orderPlaced: boolean | null;
+  priceReceived: boolean | null;
+  sampleReceived: boolean | null;
+  sampleApproved: boolean | null;
+  productionBegun: boolean | null;
+  productionDone: boolean | null;
   notes: string | null;
+  attributes?: Record<string, string | null> | null;
 }
 
 // --- Master data -------------------------------------------------------------
@@ -172,6 +203,12 @@ export const updateExpenseCategory = (id: number, body: Json) => apiSend<Expense
 export const deleteExpenseCategory = (id: number) => apiSend("DELETE", `/expense-categories/${id}`);
 
 export const getProductDevelopments = () => apiGet<ProductDevelopment[]>("/product-developments");
+export const createProductDevelopment = (body: Json) =>
+  apiSend<ProductDevelopment>("POST", "/product-developments", body);
+export const updateProductDevelopment = (id: number, body: Json) =>
+  apiSend<ProductDevelopment>("PUT", `/product-developments/${id}`, body);
+export const deleteProductDevelopment = (id: number) =>
+  apiSend("DELETE", `/product-developments/${id}`);
 
 // --- Transactions ------------------------------------------------------------
 export const getSales = () => apiGet<Sale[]>("/sales");
@@ -188,6 +225,7 @@ export const deleteExpense = (id: number) => apiSend("DELETE", `/expenses/${id}`
 export const getCashFlows = (type?: CashFlowType) =>
   apiGet<CashFlow[]>(`/cashflows${type ? `?type=${type}` : ""}`);
 export const createCashFlow = (body: Json) => apiSend<CashFlow>("POST", "/cashflows", body);
+export const deleteCashFlow = (id: number) => apiSend("DELETE", `/cashflows/${id}`);
 
 // --- Reports -----------------------------------------------------------------
 export interface DashboardStats {
@@ -224,6 +262,30 @@ export const getExpenseReport = (month?: number, year?: number) => {
   if (month) qs.set("month", String(month));
   if (year) qs.set("year", String(year));
   return apiGet<Expense[]>(`/reports/expenses${qs.toString() ? `?${qs}` : ""}`);
+};
+
+export const getGelirGiderDateBounds = () =>
+  apiGet<{ min: string; max: string } | null>("/reports/gelir-gider/bounds");
+
+export interface GelirGiderBreakdownItem { name: string; amount: number }
+export interface GelirGiderReport {
+  start: string;
+  end: string;
+  satisToplam: number;
+  alimToplam: number;
+  urunGiderleri: number;
+  genelGiderler: number;
+  karZarar: number;
+  satisKalemleri: GelirGiderBreakdownItem[];
+  alimKalemleri: GelirGiderBreakdownItem[];
+  urunGiderKalemleri: GelirGiderBreakdownItem[];
+  genelGiderKalemleri: GelirGiderBreakdownItem[];
+}
+export const getGelirGiderReport = (start?: string, end?: string) => {
+  const qs = new URLSearchParams();
+  if (start) qs.set("start", start);
+  if (end) qs.set("end", end);
+  return apiGet<GelirGiderReport>(`/reports/gelir-gider${qs.toString() ? `?${qs}` : ""}`);
 };
 
 export interface IncomeExpenseReport { income: number; expense: number; profit: number; sales: Sale[]; expenses: Expense[] }
@@ -272,7 +334,19 @@ export const changePassword = (currentPassword: string, newPassword: string) =>
 export interface AgingRow { name: string; d0_30: number; d31_60: number; d61_90: number; d90plus: number; total: number }
 export const getAgingReport = () => apiGet<AgingRow[]>("/reports/aging");
 
-export interface VatDeclaration { outputVat: number; inputVat: number; payableVat: number; period: { month: number | null; year: number } }
+export interface VatRateBreakdown { rate: number; base: number; vat: number; count: number }
+export interface VatDeclaration {
+  outputVat: number;
+  inputVat: number;
+  payableVat: number;
+  salesBase: number;
+  purchasesBase: number;
+  salesCount: number;
+  purchaseCount: number;
+  outputByRate: VatRateBreakdown[];
+  inputByRate: VatRateBreakdown[];
+  period: { month: number | null; year: number };
+}
 export const getVatDeclaration = (month?: number, year?: number) => {
   const qs = new URLSearchParams();
   if (month) qs.set("month", String(month));
@@ -316,10 +390,11 @@ export const deleteAccount = (id: number) => apiSend("DELETE", `/accounts/${id}`
 export interface Warehouse { id: number; name: string; location: string | null }
 export const getWarehouses = () => apiGet<Warehouse[]>("/warehouses");
 export const createWarehouse = (body: Json) => apiSend("POST", "/warehouses", body);
+export const updateWarehouse = (id: number, body: Json) => apiSend("PUT", `/warehouses/${id}`, body);
 export const deleteWarehouse = (id: number) => apiSend("DELETE", `/warehouses/${id}`);
 
 // --- Stock movements ---------------------------------------------------------
-export interface StockMovement { id: number; date: string; type: string; quantity: number; reason: string | null; product: Product; warehouse: Warehouse | null }
+export interface StockMovement { id: number; date: string; type: string; quantity: number; reason: string | null; notes: string | null; product: Product; warehouse: Warehouse | null; warehouseId?: number | null; productId?: number }
 export const getStockMovements = () => apiGet<StockMovement[]>("/stock-movements");
 export const createStockMovement = (body: Json) => apiSend("POST", "/stock-movements", body);
 
@@ -334,24 +409,87 @@ export const deleteOrder = (id: number) => apiSend("DELETE", `/orders/${id}`);
 export interface QuoteDoc { id: number; partnerId: number; date: string; validUntil: string | null; status: string; totalAmount: number; vatIncludedAmount: number; notes: string | null; lines: DocLine[] }
 export const getQuotes = () => apiGet<QuoteDoc[]>("/quotes");
 export const createQuote = (body: Json) => apiSend("POST", "/quotes", body);
+export const updateQuote = (id: number, body: Json) => apiSend("PUT", `/quotes/${id}`, body);
 export const deleteQuote = (id: number) => apiSend("DELETE", `/quotes/${id}`);
 
 export interface InvoiceDoc { id: number; docType: "SALES" | "PURCHASE"; partnerId: number; number: string | null; date: string; dueDate: string | null; status: string; totalAmount: number; vatIncludedAmount: number; notes: string | null; lines: DocLine[] }
 export const getInvoices = () => apiGet<InvoiceDoc[]>("/invoices");
 export const createInvoice = (body: Json) => apiSend("POST", "/invoices", body);
+export const updateInvoice = (id: number, body: Json) => apiSend("PUT", `/invoices/${id}`, body);
 export const deleteInvoice = (id: number) => apiSend("DELETE", `/invoices/${id}`);
 
 // --- Documents: simple ones --------------------------------------------------
-export const getReturns = () => apiGet<Record<string, unknown>[]>("/returns");
+export interface ReturnDoc {
+  id: number;
+  type: "SALES_RETURN" | "PURCHASE_RETURN";
+  partnerId: number;
+  productId: number;
+  date: string;
+  quantity: number;
+  amount: number;
+  reason: string | null;
+  notes: string | null;
+  createdAt: string;
+}
+export const getReturns = () => apiGet<ReturnDoc[]>("/returns");
 export const createReturn = (body: Json) => apiSend("POST", "/returns", body);
-export const getBoms = () => apiGet<Record<string, unknown>[]>("/boms");
+export const updateReturn = (id: number, body: Json) => apiSend("PUT", `/returns/${id}`, body);
+export const deleteReturn = (id: number) => apiSend("DELETE", `/returns/${id}`);
+export interface BomComponent { id?: number; componentProductId: number; quantity: number }
+export interface BomDoc {
+  id: number;
+  productId: number;
+  name: string;
+  isActive: boolean;
+  components: BomComponent[];
+}
+export const getBoms = () => apiGet<BomDoc[]>("/boms");
 export const createBom = (body: Json) => apiSend("POST", "/boms", body);
-export const getProductionOrders = () => apiGet<Record<string, unknown>[]>("/production-orders");
+export const updateBom = (id: number, body: Json) => apiSend("PUT", `/boms/${id}`, body);
+export const deleteBom = (id: number) => apiSend("DELETE", `/boms/${id}`);
+export const getProductionOrders = () => apiGet<ProductionOrderDoc[]>("/production-orders");
 export const createProductionOrder = (body: Json) => apiSend("POST", "/production-orders", body);
-export const getPriceLists = () => apiGet<Record<string, unknown>[]>("/price-lists");
+export const updateProductionOrder = (id: number, body: Json) => apiSend("PUT", `/production-orders/${id}`, body);
+export const deleteProductionOrder = (id: number) => apiSend("DELETE", `/production-orders/${id}`);
+
+export interface ProductionOrderDoc {
+  id: number;
+  bomId: number | null;
+  productId: number;
+  quantity: number;
+  status: "PLANNED" | "IN_PROGRESS" | "DONE" | "CANCELLED";
+  startDate: string | null;
+  endDate: string | null;
+  notes: string | null;
+}
+export interface PriceListItem { id?: number; productId: number; price: number }
+export interface PriceListDoc {
+  id: number;
+  name: string;
+  currency: string;
+  tier: string | null;
+  isActive: boolean;
+  items: PriceListItem[];
+}
+export const getPriceLists = () => apiGet<PriceListDoc[]>("/price-lists");
 export const createPriceList = (body: Json) => apiSend("POST", "/price-lists", body);
-export const getDiscounts = () => apiGet<Record<string, unknown>[]>("/discounts");
+export const updatePriceList = (id: number, body: Json) => apiSend("PUT", `/price-lists/${id}`, body);
+export const deletePriceList = (id: number) => apiSend("DELETE", `/price-lists/${id}`);
+export interface DiscountDoc {
+  id: number;
+  name: string;
+  percent: number | null;
+  amount: number | null;
+  productId: number | null;
+  partnerId: number | null;
+  validFrom: string | null;
+  validTo: string | null;
+  isActive: boolean;
+}
+export const getDiscounts = () => apiGet<DiscountDoc[]>("/discounts");
 export const createDiscount = (body: Json) => apiSend("POST", "/discounts", body);
+export const updateDiscount = (id: number, body: Json) => apiSend("PUT", `/discounts/${id}`, body);
+export const deleteDiscount = (id: number) => apiSend("DELETE", `/discounts/${id}`);
 
 // =============================================================================
 // Aşama 2 advanced analytics

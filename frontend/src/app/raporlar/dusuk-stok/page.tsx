@@ -21,6 +21,7 @@ export default async function DusukStokPage() {
       <DataTable
         rows={rows}
         searchKeys={["urun"]}
+        searchPlaceholder="Ürün ara…"
         emptyText="Minimum stok seviyesinin altında ürün yok."
         columns={[
           { key: "urun", label: "Ürün" },

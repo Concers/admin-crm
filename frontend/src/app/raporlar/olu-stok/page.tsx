@@ -23,6 +23,7 @@ export default async function OluStokRaporPage() {
       <DataTable
         rows={rows}
         searchKeys={["product"]}
+        searchPlaceholder="Ürün ara…"
         columns={[
           { key: "product", label: "Ürün" },
           { key: "stok", label: "Stok" },

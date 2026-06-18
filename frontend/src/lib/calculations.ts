@@ -7,6 +7,13 @@ export function ayAdi(ay: number) {
   return AYLAR[ay - 1] ?? "";
 }
 
+/** Türkçe ay adından sıra numarası (1–12); bulunamazsa 0. */
+export function ayIndeksi(ayAd: string) {
+  const normalized = ayAd.trim().toLocaleUpperCase("tr-TR");
+  const idx = AYLAR.indexOf(normalized as (typeof AYLAR)[number]);
+  return idx >= 0 ? idx + 1 : 0;
+}
+
 function ayAdiFromNumber(ay: number) {
   return ayAdi(ay);
 }
@@ -94,7 +101,16 @@ export function formatCurrency(value: number) {
 }
 
 export function formatDate(value: Date | string) {
+  const raw = typeof value === "string" ? value : value.toISOString();
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) {
+    const dd = m[3];
+    const mm = m[2];
+    const yy = m[1];
+    return `${dd}.${mm}.${yy}`;
+  }
   return new Intl.DateTimeFormat("tr-TR", {
+    timeZone: "Europe/Istanbul",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",

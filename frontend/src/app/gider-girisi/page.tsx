@@ -1,5 +1,6 @@
 import { PageShell } from "@/components/page-shell";
-import { Card, CardContent } from "@/components/ui/card";
+import { StatCard, PanelCard } from "@/components/ui/stat-card";
+import { Receipt } from "lucide-react";
 import {
   getExpenseReport,
   getExpenseCategories,
@@ -7,10 +8,10 @@ import {
   getPartners,
 } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
+import { mergeGiderTurleri } from "@/lib/gider-turleri";
 import { ExportButton } from "@/components/export-button";
-import { GiderForm } from "./gider-form";
 import { mapGiderRows } from "./gider-rows";
-import { GiderTable } from "./gider-table";
+import { GiderWorkspace } from "./gider-workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -37,65 +38,54 @@ export default async function GiderGirisiPage() {
     },
   };
 
-  const genelGiderTurleri = genelGiderler.map((g) => g.name);
-  const urunGiderTurleriList = urunGiderleri.map((g) => g.name);
+  const genelGiderTurleri = mergeGiderTurleri(
+    genelGiderler.map((g) => g.name),
+    giderler,
+    "GENERAL"
+  );
+  const urunGiderTurleriList = mergeGiderTurleri(
+    urunGiderleri.map((g) => g.name),
+    giderler,
+    "PRODUCT"
+  );
   const rows = mapGiderRows(giderler);
 
   return (
-    <PageShell title="Gider Girişi" actions={<ExportButton type="expenses" />}>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Card>
-          <CardContent className="py-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
-              Toplam Kayıt
-            </p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">{ozet._count}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
-              Toplam Tutar
-            </p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">
-              {formatCurrency(ozet._sum.toplamTutar ?? 0)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
-              Peşin Ödenen
-            </p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">
-              {formatCurrency(ozet._sum.pesinOdenen ?? 0)}
-            </p>
-          </CardContent>
-        </Card>
+    <PageShell
+      title="Gider Girişi"
+      description="Genel ve ürün giderlerini kaydedin, filtreleyin ve dışa aktarın"
+      actions={<ExportButton type="expenses" />}
+    >
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard label="Toplam Kayıt" value={ozet._count} icon={Receipt} accent="blue" />
+        <StatCard
+          label="Toplam Tutar"
+          value={formatCurrency(ozet._sum.toplamTutar ?? 0)}
+          icon={Receipt}
+          accent="rose"
+        />
+        <StatCard
+          label="Peşin Ödenen"
+          value={formatCurrency(ozet._sum.pesinOdenen ?? 0)}
+          icon={Receipt}
+          accent="emerald"
+        />
       </div>
 
-      <Card>
-        <CardContent>
-          <h3 className="mb-4 font-semibold">Yeni Gider Kaydı</h3>
-          <GiderForm
-            genelGiderTurleri={genelGiderTurleri}
-            urunGiderTurleri={urunGiderTurleriList}
-            urunler={urunler.map((u) => u.name)}
-            tedarikciler={tedarikciler.map((t) => t.name)}
-          />
-        </CardContent>
-      </Card>
-
-      <div>
-        <h3 className="mb-3 text-base font-semibold">Gider Kayıtları</h3>
-        <GiderTable
+      <PanelCard
+        icon={Receipt}
+        title="Gider Kayıtları"
+        description="Ara, düzenle veya yeni kayıt ekle"
+        accent="indigo"
+      >
+        <GiderWorkspace
           rows={rows}
           genelGiderTurleri={genelGiderTurleri}
           urunGiderTurleri={urunGiderTurleriList}
           urunler={urunler.map((u) => u.name)}
           tedarikciler={tedarikciler.map((t) => t.name)}
         />
-      </div>
+      </PanelCard>
     </PageShell>
   );
 }

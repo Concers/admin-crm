@@ -7,6 +7,7 @@
 
 import { prisma } from "./prisma.js";
 import { getStockBreakdownMap } from "./costing.js";
+import { sortExpensesByExcelRow } from "./calculations.js";
 
 /** Dashboard headline figures + recent activity. */
 export async function getDashboardStats() {
@@ -147,7 +148,7 @@ export async function getSupplierDebtList() {
     .sort((a, b) => b.debt - a.debt);
 }
 
-/** Expenses filtered by month and/or year. */
+/** Expenses filtered by month and/or year, in Excel row order. */
 export async function getExpenseReport(month?: number, year?: number) {
   const now = new Date();
   let where: { date?: { gte: Date; lt: Date } } = {};
@@ -155,23 +156,118 @@ export async function getExpenseReport(month?: number, year?: number) {
   else if (month) where = { date: { gte: new Date(now.getFullYear(), month - 1, 1), lt: new Date(now.getFullYear(), month, 1) } };
   else if (year) where = { date: { gte: new Date(year, 0, 1), lt: new Date(year + 1, 0, 1) } };
 
-  return prisma.expense.findMany({
+  const rows = await prisma.expense.findMany({
     where,
-    orderBy: { date: "desc" },
     include: { product: true, partner: true },
   });
+  return sortExpensesByExcelRow(rows);
 }
 
 /** Income vs expense over a date range, with the underlying rows. */
 export async function getIncomeExpenseReport(start: Date, end: Date) {
   const [sales, expenses] = await Promise.all([
-    prisma.sale.findMany({ where: { date: { gte: start, lte: end } } }),
-    prisma.expense.findMany({ where: { date: { gte: start, lte: end } } }),
+    prisma.sale.findMany({
+      where: { date: { gte: start, lte: end } },
+      include: { product: true, customer: true },
+      orderBy: { date: "desc" },
+    }),
+    prisma.expense.findMany({
+      where: { date: { gte: start, lte: end } },
+      include: { product: true, partner: true },
+    }),
   ]);
 
   const income = sales.reduce((sum, s) => sum + s.vatIncludedAmount, 0);
   const expense = expenses.reduce((sum, e) => sum + e.totalAmount, 0);
-  return { income, expense, profit: income - expense, sales, expenses };
+  return { income, expense, profit: income - expense, sales, expenses: sortExpensesByExcelRow(expenses) };
+}
+
+export interface GelirGiderBreakdownItem {
+  name: string;
+  amount: number;
+}
+
+/** Kayıtlı işlemlerin en erken / en geç tarihi (varsayılan dönem filtresi için). */
+export async function getGelirGiderDateBounds(): Promise<{ min: string; max: string } | null> {
+  const [sale, purchase, expense] = await Promise.all([
+    prisma.sale.aggregate({ _min: { date: true }, _max: { date: true } }),
+    prisma.purchase.aggregate({ _min: { date: true }, _max: { date: true } }),
+    prisma.expense.aggregate({ _min: { date: true }, _max: { date: true } }),
+  ]);
+
+  const all = [
+    sale._min.date,
+    sale._max.date,
+    purchase._min.date,
+    purchase._max.date,
+    expense._min.date,
+    expense._max.date,
+  ].filter((d): d is Date => d != null);
+
+  if (!all.length) return null;
+
+  const min = new Date(Math.min(...all.map((d) => d.getTime())));
+  const max = new Date(Math.max(...all.map((d) => d.getTime())));
+  return { min: min.toISOString(), max: max.toISOString() };
+}
+
+/** Excel "Gelir_Gider Rapor" — KDV hariç satış, alım ve gider kırılımları. */
+export async function getGelirGiderReport(start: Date, end: Date) {
+  const [sales, purchases, expenses] = await Promise.all([
+    prisma.sale.findMany({
+      where: { date: { gte: start, lte: end } },
+      include: { product: true },
+    }),
+    prisma.purchase.findMany({
+      where: { date: { gte: start, lte: end } },
+      include: { product: true },
+    }),
+    prisma.expense.findMany({
+      where: { date: { gte: start, lte: end } },
+      include: { product: true },
+    }),
+  ]);
+
+  function sumBy<T>(
+    rows: T[],
+    keyFn: (row: T) => string,
+    valFn: (row: T) => number,
+  ): GelirGiderBreakdownItem[] {
+    const map = new Map<string, number>();
+    for (const row of rows) {
+      const key = keyFn(row);
+      map.set(key, (map.get(key) ?? 0) + valFn(row));
+    }
+    return [...map.entries()]
+      .map(([name, amount]) => ({ name, amount }))
+      .sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name, "tr"));
+  }
+
+  const satisToplam = sales.reduce((sum, s) => sum + s.totalAmount, 0);
+  const alimToplam = purchases.reduce((sum, p) => sum + p.totalAmount, 0);
+  const productExpenses = expenses.filter((e) => e.scope === "PRODUCT" && e.productId);
+  const generalExpenses = expenses.filter((e) => e.scope === "GENERAL");
+  const urunGiderleri = productExpenses.reduce((sum, e) => sum + e.totalAmount, 0);
+  const genelGiderler = generalExpenses.reduce((sum, e) => sum + e.totalAmount, 0);
+  const karZarar = satisToplam - alimToplam - urunGiderleri - genelGiderler;
+
+  return {
+    start: start.toISOString(),
+    end: end.toISOString(),
+    satisToplam,
+    alimToplam,
+    urunGiderleri,
+    genelGiderler,
+    karZarar,
+    satisKalemleri: sumBy(sales, (s) => s.product.name, (s) => s.totalAmount),
+    alimKalemleri: sumBy(purchases, (p) => p.product.name, (p) => p.totalAmount),
+    urunGiderKalemleri: sumBy(
+      productExpenses,
+      (e) => e.product!.name,
+      (e) => e.totalAmount,
+    ),
+    genelGiderKalemleri: sumBy(generalExpenses, (e) => e.category, (e) => e.totalAmount),
+  };
 }
 
 /** Customer account statement (satışlar + tahsilatlar). */
@@ -279,6 +375,21 @@ export async function getReceivableAging(asOf: Date = new Date()) {
 }
 
 /** VAT declaration (KDV beyanı) for a period: output VAT − input VAT. */
+function vatBreakdown(items: { totalAmount: number; vatIncludedAmount: number; vatRate: number }[]) {
+  const map = new Map<number, { base: number; vat: number; count: number }>();
+  for (const item of items) {
+    const rate = item.vatRate;
+    const entry = map.get(rate) ?? { base: 0, vat: 0, count: 0 };
+    entry.base += item.totalAmount;
+    entry.vat += item.vatIncludedAmount - item.totalAmount;
+    entry.count += 1;
+    map.set(rate, entry);
+  }
+  return [...map.entries()]
+    .map(([rate, v]) => ({ rate, ...v }))
+    .sort((a, b) => b.rate - a.rate);
+}
+
 export async function getVatDeclaration(month?: number, year?: number) {
   const now = new Date();
   const y = year ?? now.getFullYear();
@@ -287,13 +398,26 @@ export async function getVatDeclaration(month?: number, year?: number) {
     : { date: { gte: new Date(y, 0, 1), lt: new Date(y + 1, 0, 1) } };
 
   const [sales, purchases] = await Promise.all([
-    prisma.sale.findMany({ where, select: { totalAmount: true, vatIncludedAmount: true } }),
-    prisma.purchase.findMany({ where, select: { totalAmount: true, vatIncludedAmount: true } }),
+    prisma.sale.findMany({ where, select: { totalAmount: true, vatIncludedAmount: true, vatRate: true } }),
+    prisma.purchase.findMany({ where, select: { totalAmount: true, vatIncludedAmount: true, vatRate: true } }),
   ]);
 
-  const outputVat = sales.reduce((sum, s) => sum + (s.vatIncludedAmount - s.totalAmount), 0); // hesaplanan
-  const inputVat = purchases.reduce((sum, p) => sum + (p.vatIncludedAmount - p.totalAmount), 0); // indirilecek
-  return { outputVat, inputVat, payableVat: outputVat - inputVat, period: { month: month ?? null, year: y } };
+  const salesBase = sales.reduce((sum, s) => sum + s.totalAmount, 0);
+  const purchasesBase = purchases.reduce((sum, p) => sum + p.totalAmount, 0);
+  const outputVat = sales.reduce((sum, s) => sum + (s.vatIncludedAmount - s.totalAmount), 0);
+  const inputVat = purchases.reduce((sum, p) => sum + (p.vatIncludedAmount - p.totalAmount), 0);
+  return {
+    outputVat,
+    inputVat,
+    payableVat: outputVat - inputVat,
+    salesBase,
+    purchasesBase,
+    salesCount: sales.length,
+    purchaseCount: purchases.length,
+    outputByRate: vatBreakdown(sales),
+    inputByRate: vatBreakdown(purchases),
+    period: { month: month ?? null, year: y },
+  };
 }
 
 /** Income statement (gelir tablosu) for a period. */

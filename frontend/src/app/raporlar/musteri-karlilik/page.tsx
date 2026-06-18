@@ -35,6 +35,7 @@ export default async function MusteriKarlilikPage() {
       <DataTable
         rows={rows}
         searchKeys={["customer"]}
+        searchPlaceholder="Müşteri ara…"
         columns={[
           { key: "customer", label: "Müşteri" },
           { key: "ciro", label: "Ciro" },

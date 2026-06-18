@@ -1,77 +1,53 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import { RecordWorkspaceToolbar } from "@/components/record-workspace-toolbar";
 import { useActionToast } from "@/hooks/use-action-toast";
-import { updateSatis, deleteSatis } from "./actions";
+import {
+  buildSatisDataColumns,
+  SATIS_AMOUNT_FILTER,
+  SATIS_SEARCH_KEYS,
+} from "@/lib/satis-table-cells";
+import { deleteSatis } from "./actions";
+import { SatisModal } from "./satis-modal";
+import type { SatisTableRow } from "./satis-rows";
 
-export type SatisRow = {
-  id: number;
-  tarih: string;
-  ay: string;
-  yil: string;
-  urunAdi: string;
-  musteri: string;
-  birimSatisFiyati: string;
-  satisAdeti: number;
-  toplamTutar: string;
-  kdvDahilTutar: string;
-  karYuzdesi: string;
-  // raw values for editing
-  _date: string;
-  _productName: string;
-  _customerName: string;
-  _quantity: number;
-  _unitPrice: number;
-  _vatRate: number;
-  _paidAmount: number;
-  _notes: string;
-};
+export type SatisRow = SatisTableRow;
 
-export function SatisList({
+export function SatisWorkspace({
   rows,
   urunler,
   musteriler,
 }: {
-  rows: SatisRow[];
+  rows: SatisTableRow[];
   urunler: string[];
   musteriler: string[];
 }) {
-  const [editing, setEditing] = useState<SatisRow | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editing, setEditing] = useState<SatisTableRow | null>(null);
 
   return (
     <>
-      <DataTable
-        rows={rows}
-        searchKeys={["urunAdi", "musteri"]}
-        columns={[
-          { key: "tarih", label: "Tarih" },
-          { key: "ay", label: "Ay" },
-          { key: "yil", label: "Yıl" },
-          { key: "urunAdi", label: "Ürün" },
-          { key: "musteri", label: "Müşteri" },
-          { key: "birimSatisFiyati", label: "Birim Fiyat" },
-          { key: "satisAdeti", label: "Adet" },
-          { key: "toplamTutar", label: "Toplam" },
-          { key: "kdvDahilTutar", label: "KDV Dahil" },
-          { key: "karYuzdesi", label: "Kâr %" },
-          {
-            key: "id",
-            label: "",
-            sortable: false,
-            render: (row) => (
-              <RowActions row={row} onEdit={() => setEditing(row)} />
-            ),
-          },
-        ]}
+      <RecordWorkspaceToolbar
+        addLabel="Yeni Satış Ekle"
+        hint="Satıra tıklayarak düzenleyebilir veya yeni satış ekleyebilirsiniz."
+        onAdd={() => setCreateOpen(true)}
       />
+      <SatisList rows={rows} onEdit={setEditing} />
+      {createOpen && (
+        <SatisModal
+          mode="create"
+          urunler={urunler}
+          musteriler={musteriler}
+          onClose={() => setCreateOpen(false)}
+        />
+      )}
       {editing && (
-        <EditSatisModal
+        <SatisModal
+          mode="edit"
           row={editing}
           urunler={urunler}
           musteriler={musteriler}
@@ -82,11 +58,55 @@ export function SatisList({
   );
 }
 
-function RowActions({ row, onEdit }: { row: SatisRow; onEdit: () => void }) {
+function SatisList({
+  rows,
+  onEdit,
+}: {
+  rows: SatisTableRow[];
+  onEdit: (row: SatisTableRow) => void;
+}) {
+  const columns = useMemo(
+    () => [
+      ...buildSatisDataColumns(),
+      {
+        key: "id",
+        label: "",
+        sortable: false as const,
+        filterable: false as const,
+        render: (row: SatisTableRow) => <RowActions row={row} onEdit={() => onEdit(row)} />,
+      },
+    ],
+    [onEdit]
+  );
+
+  return (
+    <DataTable
+      rows={rows}
+      onRowClick={onEdit}
+      defaultSort={{ key: "yil", asc: false }}
+      searchPlaceholder="Ürün, müşteri, raf, not veya ay ara…"
+      searchKeys={[...SATIS_SEARCH_KEYS]}
+      amountFilter={SATIS_AMOUNT_FILTER}
+      columns={columns}
+      minTableWidth="2200px"
+      emptyText="Henüz satış kaydı yok"
+      emptyHint="Yukarıdaki butonla ilk satışınızı ekleyebilirsiniz."
+    />
+  );
+}
+
+function RowActions({ row, onEdit }: { row: SatisTableRow; onEdit: () => void }) {
   const { run, pending } = useActionToast();
   return (
-    <div className="flex items-center gap-1">
-      <Button variant="ghost" size="icon" onClick={onEdit} title="Düzenle">
+    <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onEdit}
+        title="Düzenle"
+        aria-label="Düzenle"
+        className="h-8 w-8"
+      >
         <Pencil className="h-4 w-4" />
       </Button>
       <Button
@@ -94,95 +114,16 @@ function RowActions({ row, onEdit }: { row: SatisRow; onEdit: () => void }) {
         size="icon"
         disabled={pending}
         title="Sil"
+        aria-label="Sil"
+        className="h-8 w-8 text-red-600 hover:bg-red-50 hover:text-red-700"
         onClick={() => {
-          if (confirm("Silmek istediğinize emin misiniz?")) {
+          if (confirm(`"${row.urunAdi}" satış kaydı silinsin mi?`)) {
             run(() => deleteSatis(row.id), { success: "Satış kaydı silindi." });
           }
         }}
       >
-        <Trash2 className="h-4 w-4 text-red-600" />
+        <Trash2 className="h-4 w-4" />
       </Button>
-    </div>
-  );
-}
-
-function EditSatisModal({
-  row,
-  urunler,
-  musteriler,
-  onClose,
-}: {
-  row: SatisRow;
-  urunler: string[];
-  musteriler: string[];
-  onClose: () => void;
-}) {
-  const { run, pending } = useActionToast();
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-lg">
-        <h3 className="mb-4 text-lg font-semibold">Satış Kaydını Düzenle</h3>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const fd = new FormData(e.currentTarget);
-            run(() => updateSatis(row.id, fd), {
-              success: "Satış kaydı güncellendi.",
-            });
-            onClose();
-          }}
-          className="grid grid-cols-1 gap-4 sm:grid-cols-2"
-        >
-          <div>
-            <Label htmlFor="edit-tarih">Tarih *</Label>
-            <Input
-              id="edit-tarih"
-              name="tarih"
-              type="date"
-              required
-              defaultValue={row._date.slice(0, 10)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="edit-urunAdi">Ürün Adı *</Label>
-            <Select id="edit-urunAdi" name="urunAdi" required defaultValue={row._productName}>
-              <option value="" disabled>Seçin</option>
-              {urunler.map((u) => <option key={u} value={u}>{u}</option>)}
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="edit-musteri">Müşteri / Tedarikçi</Label>
-            <Select id="edit-musteri" name="musteri" defaultValue={row._customerName}>
-              <option value="">—</option>
-              {musteriler.map((m) => <option key={m} value={m}>{m}</option>)}
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="edit-birimSatisFiyati">Birim Satış Fiyatı</Label>
-            <Input id="edit-birimSatisFiyati" name="birimSatisFiyati" type="number" step="0.01" defaultValue={row._unitPrice} />
-          </div>
-          <div>
-            <Label htmlFor="edit-satisAdeti">Satış Adedi *</Label>
-            <Input id="edit-satisAdeti" name="satisAdeti" type="number" step="1" required defaultValue={row._quantity} />
-          </div>
-          <div>
-            <Label htmlFor="edit-kdvOrani">KDV Oranı</Label>
-            <Input id="edit-kdvOrani" name="kdvOrani" type="number" step="0.01" defaultValue={row._vatRate} />
-          </div>
-          <div>
-            <Label htmlFor="edit-pesinOdenen">Peşin Ödenen</Label>
-            <Input id="edit-pesinOdenen" name="pesinOdenen" type="number" step="0.01" defaultValue={row._paidAmount} />
-          </div>
-          <div className="flex items-end justify-end gap-2 sm:col-span-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Vazgeç
-            </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Kaydediliyor..." : "Kaydet"}
-            </Button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }

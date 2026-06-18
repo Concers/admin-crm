@@ -1,8 +1,9 @@
 import { PageShell } from "@/components/page-shell";
-import { Card, CardContent } from "@/components/ui/card";
+import { PanelCard } from "@/components/ui/stat-card";
+import { Users } from "lucide-react";
 import { getUsers, type AppUser } from "@/lib/api";
-import { KullaniciForm } from "./kullanici-form";
 import { KullaniciList } from "./kullanici-list";
+import { KullaniciWorkspace } from "./kullanici-workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -32,11 +33,11 @@ export default async function KullanicilarPage() {
 
   return (
     <PageShell title="Kullanıcı Yönetimi">
-      <Card><CardContent>
-        <h3 className="mb-4 font-semibold">Yeni Kullanıcı</h3>
-        <KullaniciForm />
-      </CardContent></Card>
-      <KullaniciList rows={rows} />
+      <PanelCard icon={Users} title="Kullanıcılar" description="Sistem kullanıcılarını yönetin" accent="indigo">
+        <KullaniciWorkspace>
+          <KullaniciList rows={rows} />
+        </KullaniciWorkspace>
+      </PanelCard>
     </PageShell>
   );
 }

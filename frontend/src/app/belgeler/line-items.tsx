@@ -24,10 +24,20 @@ const emptyRow: LineRow = { productId: "", quantity: "1", unitPrice: "" };
  */
 export function LineItemsEditor({
   products,
+  initialLines,
 }: {
   products: { id: number; name: string }[];
+  initialLines?: { productId: number; quantity: number; unitPrice: number }[];
 }) {
-  const [rows, setRows] = useState<LineRow[]>([{ ...emptyRow }]);
+  const [rows, setRows] = useState<LineRow[]>(() =>
+    initialLines?.length
+      ? initialLines.map((l) => ({
+          productId: String(l.productId),
+          quantity: String(l.quantity),
+          unitPrice: String(l.unitPrice),
+        }))
+      : [{ ...emptyRow }]
+  );
 
   function update(i: number, patch: Partial<LineRow>) {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -59,12 +69,14 @@ export function LineItemsEditor({
   return (
     <div className="space-y-3">
       <input type="hidden" name="lines" value={serialised} />
-      <Label>Kalemler *</Label>
+      <Label className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+        Kalemler *
+      </Label>
       <div className="space-y-2">
         {rows.map((row, i) => (
           <div
             key={i}
-            className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_120px_140px_auto] sm:items-end"
+            className="grid grid-cols-1 gap-2 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 sm:grid-cols-[1fr_100px_120px_auto] sm:items-end"
           >
             <div>
               <Select
@@ -110,13 +122,13 @@ export function LineItemsEditor({
           </div>
         ))}
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between border-t border-[var(--border)] pt-3">
         <Button type="button" variant="outline" size="sm" onClick={addRow}>
           <Plus className="h-4 w-4" />
           Satır Ekle
         </Button>
-        <span className="text-sm font-medium">
-          Toplam: {formatCurrency(total)}
+        <span className="text-sm font-semibold tabular-nums text-indigo-700">
+          Ara toplam: {formatCurrency(total)}
         </span>
       </div>
     </div>

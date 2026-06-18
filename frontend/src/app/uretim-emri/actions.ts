@@ -1,47 +1,85 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { createProductionOrder } from "@/lib/api";
+import {
+  createProductionOrder,
+  deleteProductionOrder,
+  updateProductionOrder,
+} from "@/lib/api";
+import { dateInputToApi } from "@/lib/dates";
 
-const API_URL = process.env.API_URL ?? "http://localhost:4000/api";
+const VALID_STATUS = new Set(["PLANNED", "IN_PROGRESS", "DONE", "CANCELLED"]);
 
-async function apiDelete(path: string) {
-  const token = (await cookies()).get("token")?.value;
-  const res = await fetch(`${API_URL}${path}`, {
-    method: "DELETE",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    cache: "no-store",
-  });
-  if (!res.ok && res.status !== 204) {
-    throw new Error(`DELETE ${path} failed: ${res.status}`);
-  }
-}
-
-export async function createProductionOrderAction(formData: FormData) {
+function buildPayload(formData: FormData) {
   const productId = Number(formData.get("productId"));
   const quantity = Number(formData.get("quantity"));
-  const status = String(formData.get("status") ?? "").trim();
-  const startDate = String(formData.get("startDate") ?? "").trim();
-  const endDate = String(formData.get("endDate") ?? "").trim();
-  const notes = String(formData.get("notes") ?? "").trim();
+  const status = String(formData.get("status") ?? "PLANNED").trim();
+  const bomRaw = String(formData.get("bomId") ?? "").trim();
+  const bomId = bomRaw ? Number(bomRaw) : null;
+  const startRaw = String(formData.get("startDate") ?? "").trim();
+  const endRaw = String(formData.get("endDate") ?? "").trim();
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+  const startDate = startRaw ? dateInputToApi(startRaw) : null;
+  const endDate = endRaw ? dateInputToApi(endRaw) : null;
 
-  if (!productId || !quantity) {
-    throw new Error("Geçersiz üretim emri bilgisi.");
+  if (!productId || !(quantity > 0)) {
+    return { error: "Mamul ve miktar zorunludur." as const };
   }
 
-  await createProductionOrder({
-    productId,
-    quantity,
-    status: status || "PLANNED",
-    startDate: startDate || undefined,
-    endDate: endDate || undefined,
-    notes: notes || undefined,
-  });
+  return {
+    body: {
+      productId,
+      quantity,
+      bomId,
+      status: VALID_STATUS.has(status) ? status : "PLANNED",
+      startDate,
+      endDate,
+      notes,
+    },
+  };
+}
+
+export async function createEmir(formData: FormData): Promise<void | { error?: string }> {
+  const payload = buildPayload(formData);
+  if ("error" in payload) return payload;
+
+  try {
+    await createProductionOrder(payload.body);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Üretim emri kaydedilemedi." };
+  }
+
   revalidatePath("/uretim-emri");
 }
 
-export async function deleteProductionOrderAction(id: number) {
-  await apiDelete(`/production-orders/${id}`);
+export async function updateEmir(
+  id: number,
+  formData: FormData
+): Promise<void | { error?: string }> {
+  const payload = buildPayload(formData);
+  if ("error" in payload) return payload;
+
+  try {
+    await updateProductionOrder(id, payload.body);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Üretim emri güncellenemedi." };
+  }
+
   revalidatePath("/uretim-emri");
+}
+
+export async function deleteEmir(id: number) {
+  await deleteProductionOrder(id);
+  revalidatePath("/uretim-emri");
+}
+
+/** @deprecated use createEmir */
+export async function createProductionOrderAction(formData: FormData) {
+  const result = await createEmir(formData);
+  if (result?.error) throw new Error(result.error);
+}
+
+/** @deprecated use deleteEmir */
+export async function deleteProductionOrderAction(id: number) {
+  return deleteEmir(id);
 }

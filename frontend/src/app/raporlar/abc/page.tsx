@@ -28,6 +28,8 @@ export default async function AbcRaporPage() {
       <DataTable
         rows={rows}
         searchKeys={["product", "sinif"]}
+        searchPlaceholder="Ürün veya sınıf ara…"
+        defaultSort={{ key: "product", asc: true }}
         columns={[
           { key: "product", label: "Ürün" },
           { key: "ciro", label: "Ciro" },

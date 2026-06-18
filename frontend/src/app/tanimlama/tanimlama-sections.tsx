@@ -1,6 +1,6 @@
 "use client";
 
-import { Package, Receipt } from "lucide-react";
+import type { PartnerType } from "@/lib/api";
 import {
   deleteGenelGider,
   deleteTedarikci,
@@ -16,7 +16,7 @@ import { SimpleAdList, TedarikciList, UrunList } from "./tanimlama-lists";
 export function TedarikciListClient({
   rows,
 }: {
-  rows: { id: number; tip: string; ad: string }[];
+  rows: { id: number; tip: PartnerType; ad: string }[];
 }) {
   return (
     <TedarikciList
@@ -28,7 +28,13 @@ export function TedarikciListClient({
 }
 
 export function UrunListClient({ rows }: { rows: { id: number; ad: string; raf: string }[] }) {
-  return <UrunList rows={rows} onUpdate={updateUrun} onDelete={deleteUrun} emptyIcon={Package} />;
+  return (
+    <UrunList
+      rows={rows}
+      onUpdate={updateUrun}
+      onDelete={deleteUrun}
+    />
+  );
 }
 
 export function GenelGiderListClient({
@@ -40,11 +46,11 @@ export function GenelGiderListClient({
     <SimpleAdList
       rows={rows}
       label="Gider Türü"
+      editTitle="Genel Gider Türünü Düzenle"
       onUpdate={updateGenelGider}
       onDelete={deleteGenelGider}
-      searchPlaceholder="Gider türü ara..."
-      emptyEntity="genel gider türü"
-      emptyIcon={Receipt}
+      searchPlaceholder="Gider türü ara…"
+      emptyText="Henüz genel gider türü eklenmemiş"
     />
   );
 }
@@ -58,11 +64,11 @@ export function UrunGiderListClient({
     <SimpleAdList
       rows={rows}
       label="Gider Türü"
+      editTitle="Ürün Gider Türünü Düzenle"
       onUpdate={updateUrunGider}
       onDelete={deleteUrunGider}
-      searchPlaceholder="Ürün gider türü ara..."
-      emptyEntity="ürün gider türü"
-      emptyIcon={Receipt}
+      searchPlaceholder="Ürün gider türü ara…"
+      emptyText="Henüz ürün gider türü eklenmemiş"
     />
   );
 }

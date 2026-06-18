@@ -19,6 +19,7 @@ export default async function GiderMerkeziPage() {
       <DataTable
         rows={rows}
         searchKeys={["category"]}
+        searchPlaceholder="Kategori ara…"
         columns={[
           { key: "category", label: "Kategori" },
           { key: "buDonem", label: "Bu Dönem" },

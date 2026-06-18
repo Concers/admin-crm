@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { allocatePayment, deleteAllocation } from "@/lib/api";
 
-export async function allocateAction(formData: FormData): Promise<void | { error?: string }> {
+export async function allocateTahsis(formData: FormData): Promise<void | { error?: string }> {
   const invoiceId = Number(formData.get("invoiceId"));
   const cashFlowId = Number(formData.get("cashFlowId"));
   const amount = Number(formData.get("amount"));
@@ -18,11 +18,21 @@ export async function allocateAction(formData: FormData): Promise<void | { error
   revalidatePath("/mutabakat");
 }
 
-export async function removeAllocationAction(id: number): Promise<void | { error?: string }> {
+export async function removeTahsis(id: number): Promise<void | { error?: string }> {
   try {
     await deleteAllocation(id);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Tahsis silinemedi." };
   }
   revalidatePath("/mutabakat");
+}
+
+/** @deprecated use allocateTahsis */
+export async function allocateAction(formData: FormData) {
+  return allocateTahsis(formData);
+}
+
+/** @deprecated use removeTahsis */
+export async function removeAllocationAction(id: number) {
+  return removeTahsis(id);
 }

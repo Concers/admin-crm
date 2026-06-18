@@ -10,12 +10,14 @@ export function KullaniciList({ rows }: { rows: Row[] }) {
     <DataTable
       rows={rows}
       searchKeys={["ad", "eposta", "rol"]}
+      searchPlaceholder="Ad, e-posta veya rol ara…"
+      defaultSort={{ key: "ad", asc: true }}
       columns={[
         { key: "ad", label: "Ad" },
         { key: "eposta", label: "E-posta" },
         { key: "rol", label: "Rol" },
         { key: "durum", label: "Durum" },
-        { key: "sil", label: "", sortable: false, render: (row: Row) => <DeleteButton id={row.id} name={row.ad} /> },
+        { key: "sil", label: "", sortable: false, filterable: false, render: (row: Row) => <DeleteButton id={row.id} name={row.ad} /> },
       ]}
     />
   );

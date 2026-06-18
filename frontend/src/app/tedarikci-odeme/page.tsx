@@ -1,9 +1,10 @@
 import { PageShell } from "@/components/page-shell";
-import { Card, CardContent } from "@/components/ui/card";
-import { DataTable } from "@/components/data-table";
+import { StatCard, PanelCard } from "@/components/ui/stat-card";
+import { Building2, TrendingDown, Wallet } from "lucide-react";
 import { getCashFlows, getPartners } from "@/lib/api";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import { OdemeForm } from "./odeme-form";
+import { formatCurrency, calendarMonth, calendarYear } from "@/lib/utils";
+import { OdemeWorkspace } from "./odeme-workspace";
+import { mapOdemeRows } from "./odeme-rows";
 
 export const dynamic = "force-dynamic";
 
@@ -13,25 +14,67 @@ export default async function TedarikciOdemePage() {
     getPartners("SUPPLIER"),
     getPartners("SERVICE_PROVIDER"),
   ]);
+
   const tedarikciler = [...suppliers, ...serviceProviders].sort((a, b) =>
     a.name.localeCompare(b.name, "tr")
   );
-  const rows = odemeler.map((o) => ({
-    tarih: formatDate(new Date(o.date)),
-    tedarikciAdi: o.partner.name,
-    odenenTutar: formatCurrency(o.amount),
-    notlar: o.notes ?? "",
-  }));
+  const tedarikciAdlari = tedarikciler.map((t) => t.name);
+  const rows = mapOdemeRows(odemeler);
+
+  const now = new Date();
+  const buAy = now.getMonth() + 1;
+  const buYil = now.getFullYear();
+
+  const ozet = {
+    kayit: odemeler.length,
+    toplamOdenen: odemeler.reduce((acc, o) => acc + o.amount, 0),
+    tedarikciSayisi: new Set(odemeler.map((o) => o.partner.name)).size,
+    buAyOdenen: odemeler
+      .filter((o) => calendarMonth(o.date) === buAy && calendarYear(o.date) === buYil)
+      .reduce((acc, o) => acc + o.amount, 0),
+  };
+
   return (
-    <PageShell title="Tedarikçi Ödeme">
-      <Card><CardContent>
-        <h3 className="mb-4 font-semibold">Yeni Ödeme</h3>
-        <OdemeForm tedarikciler={tedarikciler.map((t) => t.name)} />
-      </CardContent></Card>
-      <DataTable rows={rows} searchKeys={["tedarikciAdi", "notlar"]} columns={[
-        { key: "tarih", label: "Tarih" }, { key: "tedarikciAdi", label: "Tedarikçi" },
-        { key: "odenenTutar", label: "Ödenen Tutar" }, { key: "notlar", label: "Notlar" },
-      ]} />
+    <PageShell
+      title="Tedarikçi Ödeme"
+      description="Tedarikçi ve hizmet sağlayıcı ödemelerini kaydedin ve takip edin"
+    >
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:gap-4">
+        <StatCard
+          label="Ödeme Kaydı"
+          value={ozet.kayit}
+          icon={Wallet}
+          accent="rose"
+          subtext={`${ozet.tedarikciSayisi} farklı tedarikçi`}
+        />
+        <StatCard
+          label="Toplam Ödenen"
+          value={formatCurrency(ozet.toplamOdenen)}
+          icon={TrendingDown}
+          accent="amber"
+        />
+        <StatCard
+          label="Bu Ay Ödenen"
+          value={formatCurrency(ozet.buAyOdenen)}
+          icon={Building2}
+          accent="indigo"
+        />
+        <StatCard
+          label="Ortalama Ödeme"
+          value={formatCurrency(ozet.kayit > 0 ? ozet.toplamOdenen / ozet.kayit : 0)}
+          icon={Wallet}
+          accent="blue"
+        />
+      </div>
+
+      <PanelCard
+        icon={Wallet}
+        title="Ödeme Kayıtları"
+        description="Excel ile aynı sütunlar — tarih, tedarikçi, tutar ve notlar"
+        accent="rose"
+      >
+        <OdemeWorkspace rows={rows} tedarikciler={tedarikciAdlari} />
+      </PanelCard>
     </PageShell>
   );
 }

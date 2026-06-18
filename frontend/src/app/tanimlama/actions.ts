@@ -12,6 +12,7 @@ import {
   updateExpenseCategory,
   deleteExpenseCategory,
 } from "@/lib/api";
+import { toPartnerType } from "@/lib/partner-types";
 
 function trim(val: FormDataEntryValue | null) {
   return typeof val === "string" ? val.trim() : "";
@@ -29,82 +30,79 @@ function revalidateTanimlama() {
   for (const p of paths) revalidatePath(p);
 }
 
+async function runAction(fn: () => Promise<unknown>): Promise<{ error?: string } | void> {
+  try {
+    await fn();
+    revalidateTanimlama();
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "İşlem başarısız oldu." };
+  }
+}
+
 export async function createTedarikci(formData: FormData) {
   const ad = trim(formData.get("ad"));
-  const tip = trim(formData.get("tip")) || "SUPPLIER";
-  if (!ad) return;
-  await createPartner({ name: ad, type: tip });
-  revalidateTanimlama();
+  const tip = toPartnerType(trim(formData.get("tip")) || "SUPPLIER");
+  if (!ad) return { error: "Ad gerekli." };
+  return runAction(() => createPartner({ name: ad, type: tip }));
 }
 
 export async function updateTedarikci(id: number, formData: FormData) {
   const ad = trim(formData.get("ad"));
-  const tip = trim(formData.get("tip")) || "SUPPLIER";
-  if (!ad) return;
-  await updatePartner(id, { name: ad, type: tip });
-  revalidateTanimlama();
+  const tip = toPartnerType(trim(formData.get("tip")) || "SUPPLIER");
+  if (!ad) return { error: "Ad gerekli." };
+  return runAction(() => updatePartner(id, { name: ad, type: tip }));
 }
 
 export async function deleteTedarikci(id: number) {
-  await deletePartner(id);
-  revalidateTanimlama();
+  return runAction(() => deletePartner(id));
 }
 
 export async function createUrun(formData: FormData) {
   const ad = trim(formData.get("ad"));
   const raf = trim(formData.get("raf"));
-  if (!ad) return;
-  await createProduct({ name: ad, shelfLocation: raf || null });
-  revalidateTanimlama();
+  if (!ad) return { error: "Ürün adı gerekli." };
+  return runAction(() => createProduct({ name: ad, shelfLocation: raf || null }));
 }
 
 export async function updateUrun(id: number, formData: FormData) {
   const ad = trim(formData.get("ad"));
   const raf = trim(formData.get("raf"));
-  if (!ad) return;
-  await updateProduct(id, { name: ad, shelfLocation: raf || null });
-  revalidateTanimlama();
+  if (!ad) return { error: "Ürün adı gerekli." };
+  return runAction(() => updateProduct(id, { name: ad, shelfLocation: raf || null }));
 }
 
 export async function deleteUrun(id: number) {
-  await deleteProduct(id);
-  revalidateTanimlama();
+  return runAction(() => deleteProduct(id));
 }
 
 export async function createGenelGider(formData: FormData) {
   const ad = trim(formData.get("ad"));
-  if (!ad) return;
-  await createExpenseCategory({ name: ad, scope: "GENERAL" });
-  revalidateTanimlama();
+  if (!ad) return { error: "Gider türü gerekli." };
+  return runAction(() => createExpenseCategory({ name: ad, scope: "GENERAL" }));
 }
 
 export async function updateGenelGider(id: number, formData: FormData) {
   const ad = trim(formData.get("ad"));
-  if (!ad) return;
-  await updateExpenseCategory(id, { name: ad, scope: "GENERAL" });
-  revalidateTanimlama();
+  if (!ad) return { error: "Gider türü gerekli." };
+  return runAction(() => updateExpenseCategory(id, { name: ad }));
 }
 
 export async function deleteGenelGider(id: number) {
-  await deleteExpenseCategory(id);
-  revalidateTanimlama();
+  return runAction(() => deleteExpenseCategory(id));
 }
 
 export async function createUrunGider(formData: FormData) {
   const ad = trim(formData.get("ad"));
-  if (!ad) return;
-  await createExpenseCategory({ name: ad, scope: "PRODUCT" });
-  revalidateTanimlama();
+  if (!ad) return { error: "Gider türü gerekli." };
+  return runAction(() => createExpenseCategory({ name: ad, scope: "PRODUCT" }));
 }
 
 export async function updateUrunGider(id: number, formData: FormData) {
   const ad = trim(formData.get("ad"));
-  if (!ad) return;
-  await updateExpenseCategory(id, { name: ad, scope: "PRODUCT" });
-  revalidateTanimlama();
+  if (!ad) return { error: "Gider türü gerekli." };
+  return runAction(() => updateExpenseCategory(id, { name: ad }));
 }
 
 export async function deleteUrunGider(id: number) {
-  await deleteExpenseCategory(id);
-  revalidateTanimlama();
+  return runAction(() => deleteExpenseCategory(id));
 }

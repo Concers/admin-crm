@@ -1,26 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Package, Truck, LayoutGrid } from "lucide-react";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import { RecordWorkspaceToolbar } from "@/components/record-workspace-toolbar";
 import { useActionToast } from "@/hooks/use-action-toast";
-import { updateAlim, deleteAlim } from "./actions";
+import { cn } from "@/lib/utils";
+import { deleteAlim } from "./actions";
+import { AlimModal } from "./alim-modal";
 
 export type AlimRow = {
   id: number;
   tarih: string;
   urunAdi: string;
   tedarikci: string;
+  raf: string;
   birimAlimFiyati: string;
   alimAdeti: number;
   toplamTutar: string;
   kdvDahilTutar: string;
   pesinOdenen: string;
-  // raw values for editing
   _date: string;
   _productName: string;
   _supplierName: string;
@@ -28,11 +28,13 @@ export type AlimRow = {
   _unitPrice: number;
   _vatRate: number;
   _paidAmount: number;
+  _totalAmount: number;
+  _vatIncludedAmount: number;
   _shelfLocation: string;
   _notes: string;
 };
 
-export function AlimList({
+export function AlimWorkspace({
   rows,
   urunler,
   tedarikciler,
@@ -41,34 +43,28 @@ export function AlimList({
   urunler: string[];
   tedarikciler: string[];
 }) {
+  const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<AlimRow | null>(null);
 
   return (
     <>
-      <DataTable
-        rows={rows}
-        searchKeys={["urunAdi", "tedarikci"]}
-        columns={[
-          { key: "tarih", label: "Tarih" },
-          { key: "urunAdi", label: "Ürün" },
-          { key: "tedarikci", label: "Tedarikçi" },
-          { key: "birimAlimFiyati", label: "Birim Fiyat" },
-          { key: "alimAdeti", label: "Adet" },
-          { key: "toplamTutar", label: "Toplam" },
-          { key: "kdvDahilTutar", label: "KDV Dahil" },
-          { key: "pesinOdenen", label: "Peşin" },
-          {
-            key: "id",
-            label: "",
-            sortable: false,
-            render: (row) => (
-              <RowActions row={row} onEdit={() => setEditing(row)} />
-            ),
-          },
-        ]}
+      <RecordWorkspaceToolbar
+        addLabel="Yeni Alım Ekle"
+        hint="Satıra tıklayarak düzenleyebilir veya yeni alım ekleyebilirsiniz."
+        onAdd={() => setCreateOpen(true)}
       />
+      <AlimList rows={rows} onEdit={setEditing} />
+      {createOpen && (
+        <AlimModal
+          mode="create"
+          urunler={urunler}
+          tedarikciler={tedarikciler}
+          onClose={() => setCreateOpen(false)}
+        />
+      )}
       {editing && (
-        <EditAlimModal
+        <AlimModal
+          mode="edit"
           row={editing}
           urunler={urunler}
           tedarikciler={tedarikciler}
@@ -79,11 +75,154 @@ export function AlimList({
   );
 }
 
+function AlimList({ rows, onEdit }: { rows: AlimRow[]; onEdit: (row: AlimRow) => void }) {
+  return (
+    <DataTable
+      rows={rows}
+      onRowClick={onEdit}
+      defaultSort={{ key: "tarih", asc: false }}
+      searchKeys={["urunAdi", "tedarikci", "raf", "tarih"]}
+      searchPlaceholder="Ürün, tedarikçi, raf veya tarih ara…"
+      emptyText="Henüz alım kaydı yok"
+      emptyHint="Yukarıdaki butonla ilk alımınızı ekleyebilirsiniz."
+      amountFilter={{
+        defaultField: "toplam",
+        fields: [
+          { id: "toplam", label: "Toplam", getValue: (r) => r._totalAmount },
+          { id: "kdv", label: "KDV Dahil", getValue: (r) => r._vatIncludedAmount },
+          { id: "pesin", label: "Peşin", getValue: (r) => r._paidAmount },
+          { id: "birim", label: "Birim Fiyat", getValue: (r) => r._unitPrice },
+        ],
+      }}
+      columns={[
+        {
+          key: "tarih",
+          label: "Tarih",
+          sortValue: (r) => r._date,
+          render: (r) => (
+            <span className="whitespace-nowrap text-sm tabular-nums">{r.tarih}</span>
+          ),
+        },
+        {
+          key: "urunAdi",
+          label: "Ürün",
+          render: (r) => (
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+                <Package className="h-3.5 w-3.5" />
+              </span>
+              <span className="truncate font-medium">{r.urunAdi}</span>
+            </div>
+          ),
+        },
+        {
+          key: "tedarikci",
+          label: "Tedarikçi",
+          filterValue: (r) => r.tedarikci,
+          render: (r) =>
+            r.tedarikci && r.tedarikci !== "—" ? (
+              <span className="inline-flex max-w-[10rem] items-center gap-1.5 truncate text-sm">
+                <Truck className="h-3.5 w-3.5 shrink-0 text-[var(--muted-foreground)]" />
+                {r.tedarikci}
+              </span>
+            ) : (
+              <span className="text-sm text-[var(--muted-foreground)]">—</span>
+            ),
+        },
+        {
+          key: "raf",
+          label: "Raf",
+          filterValue: (r) => r.raf || "Rafsız",
+          render: (r) =>
+            r.raf ? (
+              <span className="inline-flex items-center gap-1 rounded-md bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 ring-1 ring-violet-100">
+                <LayoutGrid className="h-3 w-3" />
+                {r.raf}
+              </span>
+            ) : (
+              <span className="text-xs text-[var(--muted-foreground)]">—</span>
+            ),
+        },
+        {
+          key: "birimAlimFiyati",
+          label: "Birim",
+          align: "right",
+          sortValue: (r) => r._unitPrice,
+          render: (r) => (
+            <span className="tabular-nums text-sm text-[var(--muted-foreground)]">
+              {r.birimAlimFiyati}
+            </span>
+          ),
+        },
+        {
+          key: "alimAdeti",
+          label: "Adet",
+          align: "right",
+          sortValue: (r) => r._quantity,
+          render: (r) => (
+            <span className="inline-flex min-w-[2rem] justify-end rounded-md bg-[var(--muted)] px-2 py-0.5 text-sm font-medium tabular-nums">
+              {r.alimAdeti}
+            </span>
+          ),
+        },
+        {
+          key: "toplamTutar",
+          label: "Toplam",
+          align: "right",
+          sortValue: (r) => r._totalAmount,
+          render: (r) => (
+            <span className="font-medium tabular-nums">{r.toplamTutar}</span>
+          ),
+        },
+        {
+          key: "kdvDahilTutar",
+          label: "KDV Dahil",
+          align: "right",
+          sortValue: (r) => r._vatIncludedAmount,
+          render: (r) => (
+            <span className="font-semibold tabular-nums text-emerald-700">{r.kdvDahilTutar}</span>
+          ),
+        },
+        {
+          key: "pesinOdenen",
+          label: "Peşin",
+          align: "right",
+          sortValue: (r) => r._paidAmount,
+          render: (r) => (
+            <span
+              className={cn(
+                "tabular-nums text-sm",
+                r._paidAmount > 0 ? "font-medium text-amber-700" : "text-[var(--muted-foreground)]"
+              )}
+            >
+              {r.pesinOdenen}
+            </span>
+          ),
+        },
+        {
+          key: "id",
+          label: "",
+          sortable: false,
+          filterable: false,
+          render: (row) => <RowActions row={row} onEdit={() => onEdit(row)} />,
+        },
+      ]}
+    />
+  );
+}
+
 function RowActions({ row, onEdit }: { row: AlimRow; onEdit: () => void }) {
   const { run, pending } = useActionToast();
   return (
-    <div className="flex items-center gap-1">
-      <Button variant="ghost" size="icon" onClick={onEdit} title="Düzenle">
+    <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onEdit}
+        title="Düzenle"
+        aria-label="Düzenle"
+        className="h-8 w-8"
+      >
         <Pencil className="h-4 w-4" />
       </Button>
       <Button
@@ -91,93 +230,16 @@ function RowActions({ row, onEdit }: { row: AlimRow; onEdit: () => void }) {
         size="icon"
         disabled={pending}
         title="Sil"
+        aria-label="Sil"
+        className="h-8 w-8 text-red-600 hover:bg-red-50 hover:text-red-700"
         onClick={() => {
-          if (confirm("Silmek istediğinize emin misiniz?")) {
+          if (confirm(`"${row.urunAdi}" alım kaydı silinsin mi?`)) {
             run(() => deleteAlim(row.id), { success: "Alım kaydı silindi." });
           }
         }}
       >
-        <Trash2 className="h-4 w-4 text-red-600" />
+        <Trash2 className="h-4 w-4" />
       </Button>
-    </div>
-  );
-}
-
-function EditAlimModal({
-  row,
-  urunler,
-  tedarikciler,
-  onClose,
-}: {
-  row: AlimRow;
-  urunler: string[];
-  tedarikciler: string[];
-  onClose: () => void;
-}) {
-  const { run, pending } = useActionToast();
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-lg">
-        <h3 className="mb-4 text-lg font-semibold">Alım Kaydını Düzenle</h3>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const fd = new FormData(e.currentTarget);
-            run(() => updateAlim(row.id, fd), {
-              success: "Alım kaydı güncellendi.",
-            });
-            onClose();
-          }}
-          className="grid grid-cols-1 gap-4 sm:grid-cols-2"
-        >
-          <div>
-            <Label htmlFor="edit-tarih">Tarih *</Label>
-            <Input id="edit-tarih" name="tarih" type="date" required defaultValue={row._date.slice(0, 10)} />
-          </div>
-          <div>
-            <Label htmlFor="edit-urunAdi">Ürün Adı *</Label>
-            <Select id="edit-urunAdi" name="urunAdi" required defaultValue={row._productName}>
-              <option value="" disabled>Seçin</option>
-              {urunler.map((u) => <option key={u} value={u}>{u}</option>)}
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="edit-tedarikci">Tedarikçi</Label>
-            <Select id="edit-tedarikci" name="tedarikci" defaultValue={row._supplierName}>
-              <option value="">—</option>
-              {tedarikciler.map((t) => <option key={t} value={t}>{t}</option>)}
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="edit-birimAlimFiyati">Birim Alım Fiyatı</Label>
-            <Input id="edit-birimAlimFiyati" name="birimAlimFiyati" type="number" step="0.01" defaultValue={row._unitPrice} />
-          </div>
-          <div>
-            <Label htmlFor="edit-alimAdeti">Alım Adedi *</Label>
-            <Input id="edit-alimAdeti" name="alimAdeti" type="number" step="1" required defaultValue={row._quantity} />
-          </div>
-          <div>
-            <Label htmlFor="edit-kdvOrani">KDV Oranı</Label>
-            <Input id="edit-kdvOrani" name="kdvOrani" type="number" step="0.01" defaultValue={row._vatRate} />
-          </div>
-          <div>
-            <Label htmlFor="edit-pesinOdenen">Peşin Ödenen</Label>
-            <Input id="edit-pesinOdenen" name="pesinOdenen" type="number" step="0.01" defaultValue={row._paidAmount} />
-          </div>
-          <div>
-            <Label htmlFor="edit-konulanRaf">Konulan Raf</Label>
-            <Input id="edit-konulanRaf" name="konulanRaf" defaultValue={row._shelfLocation} />
-          </div>
-          <div className="flex items-end justify-end gap-2 sm:col-span-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Vazgeç
-            </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Kaydediliyor..." : "Kaydet"}
-            </Button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }

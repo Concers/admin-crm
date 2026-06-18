@@ -2,19 +2,25 @@ import { Topbar } from "@/components/layout/topbar";
 
 export function PageShell({
   title,
+  description,
   children,
   actions,
 }: {
   title: string;
+  description?: string;
   children: React.ReactNode;
   actions?: React.ReactNode;
 }) {
   return (
     <>
-      <Topbar title={title} />
-      <main className="flex-1 space-y-6 p-6">
-        {actions && <div className="flex justify-end">{actions}</div>}
-        {children}
+      <Topbar title={title} description={description} />
+      <main className="flex-1">
+        <div className="mx-auto max-w-[1600px] space-y-6 p-4 sm:p-6">
+          {actions && (
+            <div className="flex flex-wrap items-center justify-end gap-2">{actions}</div>
+          )}
+          {children}
+        </div>
       </main>
     </>
   );

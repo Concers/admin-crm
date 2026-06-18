@@ -1,16 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f7f9;
+  --background: #f4f6f9;
   --foreground: #0f172a;
   --card: #ffffff;
   --muted: #f1f5f9;
   --muted-foreground: #64748b;
   --border: #e2e8f0;
-  --primary: #4f46e5;
+  --primary: #2563eb;
   --primary-foreground: #ffffff;
-  --accent: #eef2ff;
-  --ring: #c7d2fe;
+  --accent: #eff6ff;
+  --ring: #93c5fd;
+  --success: #059669;
+  --danger: #dc2626;
+  --radius: 0.75rem;
 }
 
 @theme inline {
@@ -32,11 +35,68 @@
   border-color: var(--border);
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
+
+::selection {
+  background: var(--accent);
+  color: var(--foreground);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Scrollbar — sidebar & tables */
+.overflow-y-auto::-webkit-scrollbar,
+.overflow-auto::-webkit-scrollbar,
+.overflow-x-auto::-webkit-scrollbar,
+.table-scroll-x::-webkit-scrollbar {
+  width: 6px;
+  height: 8px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb,
+.overflow-auto::-webkit-scrollbar-thumb,
+.overflow-x-auto::-webkit-scrollbar-thumb,
+.table-scroll-x::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover,
+.overflow-auto::-webkit-scrollbar-thumb:hover,
+.overflow-x-auto::-webkit-scrollbar-thumb:hover,
+.table-scroll-x::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+.table-scroll-x {
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted-foreground) var(--muted);
+}
+
+/* -------------------------------------------------------------------------
+   Shepherd.js — temel stiller (paket CSS import'u Tailwind v4 ile uyumsuz).
+   ------------------------------------------------------------------------- */
+.shepherd-button{background:#3288e6;border:0;border-radius:3px;color:hsla(0,0%,100%,.75);cursor:pointer;margin-right:.5rem;padding:.5rem 1.5rem;transition:all .5s ease}.shepherd-button:not(:disabled):hover{background:#196fcc;color:hsla(0,0%,100%,.75)}.shepherd-button.shepherd-button-secondary{background:#f1f2f3;color:rgba(0,0,0,.75)}.shepherd-button.shepherd-button-secondary:not(:disabled):hover{background:#d6d9db;color:rgba(0,0,0,.75)}.shepherd-button:disabled{cursor:not-allowed}
+.shepherd-footer{border-bottom-left-radius:5px;border-bottom-right-radius:5px;display:flex;justify-content:flex-end;padding:0 .75rem .75rem}.shepherd-footer .shepherd-button:last-child{margin-right:0}
+.shepherd-cancel-icon{background:transparent;border:none;color:hsla(0,0%,50%,.75);cursor:pointer;font-size:2em;font-weight:400;margin:0;padding:0;transition:color .5s ease}.shepherd-cancel-icon:hover{color:rgba(0,0,0,.75)}.shepherd-has-title .shepherd-content .shepherd-cancel-icon{color:hsla(0,0%,50%,.75)}.shepherd-has-title .shepherd-content .shepherd-cancel-icon:hover{color:rgba(0,0,0,.75)}
+.shepherd-title{color:rgba(0,0,0,.75);display:flex;flex:1 0 auto;font-size:1rem;font-weight:400;margin:0;padding:0}
+.shepherd-header{align-items:center;border-top-left-radius:5px;border-top-right-radius:5px;display:flex;justify-content:flex-end;line-height:2em;padding:.75rem .75rem 0}.shepherd-has-title .shepherd-content .shepherd-header{background:#e6e6e6;padding:1em}
+.shepherd-text{color:rgba(0,0,0,.75);font-size:1rem;line-height:1.3em;padding:.75em}.shepherd-text p{margin-top:0}.shepherd-text p:last-child{margin-bottom:0}
+.shepherd-content{border-radius:5px;outline:none;padding:0}
+.shepherd-element{background:#fff;border:none;border-radius:5px;box-shadow:0 1px 4px rgba(0,0,0,.2);margin:0;max-width:400px;opacity:0;outline:none;padding:0;transition:opacity .3s,visibility .3s;visibility:hidden;width:100%;z-index:9999}.shepherd-enabled.shepherd-element{opacity:1;visibility:visible}.shepherd-element[data-popper-reference-hidden]:not(.shepherd-centered){opacity:0;pointer-events:none;visibility:hidden}.shepherd-element,.shepherd-element *,.shepherd-element :after,.shepherd-element :before{box-sizing:border-box}.shepherd-arrow,.shepherd-arrow:before{height:16px;position:absolute;width:16px;z-index:-1}.shepherd-arrow:before{background:#fff;content:"";transform:rotate(45deg)}.shepherd-element[data-popper-placement^=top]>.shepherd-arrow{bottom:-8px}.shepherd-element[data-popper-placement^=bottom]>.shepherd-arrow{top:-8px}.shepherd-element[data-popper-placement^=left]>.shepherd-arrow{right:-8px}.shepherd-element[data-popper-placement^=right]>.shepherd-arrow{left:-8px}.shepherd-element.shepherd-centered>.shepherd-arrow{opacity:0}.shepherd-element.shepherd-has-title[data-popper-placement^=bottom]>.shepherd-arrow:before{background-color:#e6e6e6}.shepherd-target-click-disabled.shepherd-enabled.shepherd-target,.shepherd-target-click-disabled.shepherd-enabled.shepherd-target *{pointer-events:none}
+.shepherd-modal-overlay-container{height:0;left:0;opacity:0;overflow:hidden;pointer-events:none;position:fixed;top:0;transition:all .3s ease-out,height 0s .3s,opacity .3s 0s;width:100vw;z-index:9997}.shepherd-modal-overlay-container.shepherd-modal-is-visible{height:100vh;opacity:.5;transform:translateZ(0);transition:all .3s ease-out,height 0s 0s,opacity .3s 0s}.shepherd-modal-overlay-container.shepherd-modal-is-visible path{pointer-events:all}
 
 /* -------------------------------------------------------------------------
    Shepherd.js onboarding turu — panel tasarım token'larıyla uyumlu tema.

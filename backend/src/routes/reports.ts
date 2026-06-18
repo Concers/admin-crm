@@ -10,6 +10,8 @@ import {
   getCustomerStatement,
   getDashboardStats,
   getExpenseReport,
+  getGelirGiderDateBounds,
+  getGelirGiderReport,
   getIncomeExpenseReport,
   getIncomeStatement,
   getLowStockReport,
@@ -74,8 +76,10 @@ reportsRouter.get(
 reportsRouter.get(
   "/reports/vat",
   asyncHandler(async (req, res) => {
-    const month = req.query.month ? Number(req.query.month) : undefined;
-    const year = req.query.year ? Number(req.query.year) : undefined;
+    const bounds = await getGelirGiderDateBounds();
+    const fallback = bounds ? new Date(bounds.max) : new Date();
+    const month = req.query.month ? Number(req.query.month) : fallback.getMonth() + 1;
+    const year = req.query.year ? Number(req.query.year) : fallback.getFullYear();
     res.json(await getVatDeclaration(month, year));
   }),
 );
@@ -83,8 +87,11 @@ reportsRouter.get(
 reportsRouter.get(
   "/reports/income-statement",
   asyncHandler(async (req, res) => {
-    const start = req.query.start ? new Date(String(req.query.start)) : new Date(new Date().getFullYear(), 0, 1);
-    const end = req.query.end ? new Date(String(req.query.end)) : new Date();
+    const bounds = await getGelirGiderDateBounds();
+    const fallbackStart = bounds ? new Date(bounds.min) : new Date(new Date().getFullYear(), 0, 1);
+    const fallbackEnd = bounds ? new Date(bounds.max) : new Date();
+    const start = req.query.start ? new Date(String(req.query.start)) : fallbackStart;
+    const end = req.query.end ? new Date(String(req.query.end)) : fallbackEnd;
     res.json(await getIncomeStatement(start, end));
   }),
 );
@@ -150,6 +157,25 @@ reportsRouter.get(
     const month = req.query.month ? Number(req.query.month) : undefined;
     const year = req.query.year ? Number(req.query.year) : undefined;
     res.json(await getExpenseReport(month, year));
+  }),
+);
+
+reportsRouter.get(
+  "/reports/gelir-gider/bounds",
+  asyncHandler(async (_req, res) => {
+    res.json(await getGelirGiderDateBounds());
+  }),
+);
+
+reportsRouter.get(
+  "/reports/gelir-gider",
+  asyncHandler(async (req, res) => {
+    const bounds = await getGelirGiderDateBounds();
+    const fallbackStart = bounds ? new Date(bounds.min) : new Date(new Date().getFullYear(), 0, 1);
+    const fallbackEnd = bounds ? new Date(bounds.max) : new Date();
+    const start = req.query.start ? new Date(String(req.query.start)) : fallbackStart;
+    const end = req.query.end ? new Date(String(req.query.end)) : fallbackEnd;
+    res.json(await getGelirGiderReport(start, end));
   }),
 );
 

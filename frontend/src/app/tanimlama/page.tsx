@@ -4,6 +4,7 @@ import {
   getPartners,
   getProducts,
   getExpenseCategories,
+  type PartnerType,
 } from "@/lib/api";
 import {
   GenelGiderEkleForm,
@@ -34,7 +35,7 @@ export default async function TanimlamaPage() {
 
   const tedarikciler = sortByName(partnerler).map((p) => ({
     id: p.id,
-    tip: p.type,
+    tip: p.type as PartnerType,
     ad: p.name,
   }));
   const urunler = sortByName(urunlerData).map((u) => ({ id: u.id, ad: u.name, raf: u.shelfLocation ?? "" }));
@@ -55,9 +56,10 @@ export default async function TanimlamaPage() {
           <div className="text-sm leading-relaxed text-indigo-950/80">
             <p className="font-medium text-indigo-950">Temel tanımlar</p>
             <p className="mt-0.5 text-indigo-900/70">
-              Tedarikçi, ürün ve gider türlerini buradan yönetin. Bir kaydın adını
-              değiştirdiğinizde ilgili gider, alım ve satış kayıtları da otomatik
-              güncellenir.
+              Tedarikçi, ürün ve gider türlerini buradan yönetin. Düzenlemek için
+              listedeki satıra veya kalem ikonuna tıklayın — açılan pencereden
+              kaydedin. Ad değişiklikleri ilgili gider, alım ve satış kayıtlarına
+              otomatik yansır.
             </p>
           </div>
         </div>

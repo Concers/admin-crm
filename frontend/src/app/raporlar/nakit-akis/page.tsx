@@ -32,6 +32,7 @@ export default async function NakitAkisPage() {
       <DataTable
         rows={rows}
         searchKeys={["ay"]}
+        searchPlaceholder="Ay ara…"
         columns={[
           { key: "ay", label: "Ay" },
           { key: "giris", label: "Giriş" },

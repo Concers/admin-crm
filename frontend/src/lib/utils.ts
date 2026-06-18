@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { formatCalendarDate as formatCal } from "./dates";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -13,13 +14,15 @@ export function formatCurrency(value: number) {
   }).format(value);
 }
 
-export function formatDate(value: Date | string) {
-  return new Intl.DateTimeFormat("tr-TR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(value));
+export function formatCalendarDate(value: Date | string) {
+  return formatCal(value);
 }
+
+export function formatDate(value: Date | string) {
+  return formatCal(value);
+}
+
+export { toDateInputValue, parseCalendarParts, calendarMonth, calendarYear, calendarDay, parseDateInput, dateInputToApi } from "./dates";
 
 /** Aynı isimli seçenekleri tekilleştirir (React key uyarılarını önler). */
 export function uniqueStrings(values: string[]) {

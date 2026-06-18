@@ -26,6 +26,7 @@ export async function createGider(formData: FormData) {
     totalAmount: num(formData.get("toplamTutar")),
     paidAmount: num(formData.get("pesinOdenen")),
     notes: (formData.get("notlar") as string) || null,
+    invoiceNo: String(formData.get("faturaNo") ?? "").trim() || null,
   });
 
   revalidatePath("/gider-girisi");
@@ -53,6 +54,7 @@ export async function updateGider(id: number, formData: FormData): Promise<void 
       totalAmount: num(formData.get("toplamTutar")),
       paidAmount: num(formData.get("pesinOdenen")),
       notes: (formData.get("notlar") as string) || null,
+      invoiceNo: String(formData.get("faturaNo") ?? "").trim() || null,
     });
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Gider güncellenemedi." };

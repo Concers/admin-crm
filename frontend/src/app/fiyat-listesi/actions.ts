@@ -1,10 +1,7 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { createPriceList } from "@/lib/api";
-
-const API_URL = process.env.API_URL ?? "http://localhost:4000/api";
+import { createPriceList, deletePriceList, updatePriceList } from "@/lib/api";
 
 type Item = { productId: number; price: number };
 
@@ -20,32 +17,63 @@ function parseItems(raw: FormDataEntryValue | null): Item[] {
   }
 }
 
-async function apiDelete(path: string) {
-  const token = (await cookies()).get("token")?.value;
-  const res = await fetch(`${API_URL}${path}`, {
-    method: "DELETE",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    cache: "no-store",
-  });
-  if (!res.ok && res.status !== 204) {
-    throw new Error(`DELETE ${path} failed: ${res.status}`);
-  }
-}
-
-export async function createPriceListAction(formData: FormData) {
+function buildPayload(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const currency = String(formData.get("currency") ?? "").trim() || "TRY";
+  const tier = String(formData.get("tier") ?? "").trim() || null;
   const items = parseItems(formData.get("items"));
+  const isActive = formData.get("isActive") === "on" || formData.get("isActive") === "true";
 
   if (!name || items.length === 0) {
-    throw new Error("Geçersiz fiyat listesi bilgisi.");
+    return { error: "Liste adı ve en az bir kalem zorunludur." as const };
   }
 
-  await createPriceList({ name, currency, items });
+  return { body: { name, currency, tier, items, isActive } };
+}
+
+export async function createFiyatListesi(
+  formData: FormData
+): Promise<void | { error?: string }> {
+  const payload = buildPayload(formData);
+  if ("error" in payload) return payload;
+
+  try {
+    await createPriceList(payload.body);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Fiyat listesi kaydedilemedi." };
+  }
+
   revalidatePath("/fiyat-listesi");
 }
 
-export async function deletePriceListAction(id: number) {
-  await apiDelete(`/price-lists/${id}`);
+export async function updateFiyatListesi(
+  id: number,
+  formData: FormData
+): Promise<void | { error?: string }> {
+  const payload = buildPayload(formData);
+  if ("error" in payload) return payload;
+
+  try {
+    await updatePriceList(id, payload.body);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Fiyat listesi güncellenemedi." };
+  }
+
   revalidatePath("/fiyat-listesi");
+}
+
+export async function deleteFiyatListesi(id: number) {
+  await deletePriceList(id);
+  revalidatePath("/fiyat-listesi");
+}
+
+/** @deprecated use createFiyatListesi */
+export async function createPriceListAction(formData: FormData) {
+  const result = await createFiyatListesi(formData);
+  if (result?.error) throw new Error(result.error);
+}
+
+/** @deprecated use deleteFiyatListesi */
+export async function deletePriceListAction(id: number) {
+  return deleteFiyatListesi(id);
 }

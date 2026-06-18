@@ -32,9 +32,13 @@ import {
   calcPurchaseTotals,
   calcSaleCosting,
   parseDate,
+  rawNumber,
   toNumber,
   weightedAveragePurchaseCost,
 } from "../lib/calculations.js";
+import { syncExpenseCategoriesFromRecords, isValidCategoryName } from "../lib/expenseCategories.js";
+import { dedupeLegacyExpenses } from "../lib/dedupeExpenses.js";
+import { parseInvoiceNoFromNotes } from "../lib/expenseInvoice.js";
 
 const prisma = new PrismaClient();
 
@@ -78,6 +82,11 @@ async function ensurePartner(name: string, fallbackType: PartnerType): Promise<n
   if (!key) return null;
   const existing = partnerIdByName.get(key);
   if (existing) return existing;
+  const found = await prisma.partner.findUnique({ where: { name: key } });
+  if (found) {
+    partnerIdByName.set(key, found.id);
+    return found.id;
+  }
   const created = await prisma.partner.create({ data: { name: key, type: fallbackType } });
   partnerIdByName.set(key, created.id);
   return created.id;
@@ -88,6 +97,11 @@ async function ensureProduct(name: string): Promise<number | null> {
   if (!key) return null;
   const existing = productIdByName.get(key);
   if (existing) return existing;
+  const found = await prisma.product.findUnique({ where: { name: key } });
+  if (found) {
+    productIdByName.set(key, found.id);
+    return found.id;
+  }
   const created = await prisma.product.create({ data: { name: key } });
   productIdByName.set(key, created.id);
   return created.id;
@@ -101,6 +115,7 @@ async function resetDatabase() {
   await prisma.cashFlow.deleteMany();
   await prisma.sale.deleteMany();
   await prisma.purchase.deleteMany();
+  // Full reset — all expenses (including manual) are rebuilt from workbook.
   await prisma.expense.deleteMany();
   await prisma.productDevelopment.deleteMany();
   await prisma.expenseCategory.deleteMany();
@@ -168,7 +183,7 @@ async function importDefinitions(wb: XLSXType.WorkBook) {
       categories++;
     }
     const productCat = str(cell(sheet, r, 8));
-    if (productCat) {
+    if (productCat && isValidCategoryName(productCat)) {
       await prisma.expenseCategory.upsert({
         where: { name_scope: { name: productCat, scope: ExpenseScope.PRODUCT } },
         update: {},
@@ -199,11 +214,13 @@ async function importExpenses(wb: XLSXType.WorkBook) {
   let count = 0;
 
   for (let r = DATA_START_ROW; r <= end; r++) {
+    const excelRow = r + 1;
     const date = parseDate(cell(sheet, r, 1));
-    const total = toNumber(cell(sheet, r, 9));
+    const total = rawNumber(cell(sheet, r, 9));
     const category = str(cell(sheet, r, 5));
-    // Skip blank rows: an expense needs at least a date and a category or amount.
-    if (!date || (!category && total === 0)) continue;
+    const paid = rawNumber(cell(sheet, r, 10));
+    // Skip blank rows: need date and (category or amount).
+    if (!date || (!category && total == null && paid == null)) continue;
 
     const scope =
       str(cell(sheet, r, 4)).toUpperCase().includes("ÜRÜN")
@@ -217,35 +234,48 @@ async function importExpenses(wb: XLSXType.WorkBook) {
       ? await ensurePartner(providerName, PartnerType.SERVICE_PROVIDER)
       : null;
 
-    const paid = toNumber(cell(sheet, r, 10));
-    const durationMonths = toNumber(cell(sheet, r, 6), 1);
-    // Prefer the workbook's pre-computed window; recompute as a fallback.
-    const amort = calcAmortisation({ date, durationMonths, paidAmount: paid });
+    const durationMonths = rawNumber(cell(sheet, r, 6));
+    const paidAmount = paid ?? 0;
+    const amort =
+      durationMonths != null && date
+        ? calcAmortisation({ date, durationMonths, paidAmount })
+        : null;
 
-    await prisma.expense.create({
-      data: {
-        date,
-        scope,
-        category: category || "Diğer",
-        productId,
-        partnerId,
-        totalAmount: total,
-        paidAmount: paid,
-        notes: str(cell(sheet, r, 11)) || null,
-        durationMonths: durationMonths || amort.durationMonths,
-        monthlyShare: toNumber(cell(sheet, r, 12)) || amort.monthlyShare,
-        startMonth: toNumber(cell(sheet, r, 13)) || amort.startMonth,
-        startYear: toNumber(cell(sheet, r, 14)) || amort.startYear,
-        endMonth: toNumber(cell(sheet, r, 15)) || amort.endMonth,
-        endYear: toNumber(cell(sheet, r, 16)) || amort.endYear,
-        startDate: parseDate(cell(sheet, r, 17)) ?? amort.startDate,
-        endDate: parseDate(cell(sheet, r, 18)) ?? amort.endDate,
-      },
+    const notes = str(cell(sheet, r, 11)) || null;
+    const expenseData = {
+      date,
+      scope,
+      category: category || "Diğer",
+      productId,
+      partnerId,
+      totalAmount: total ?? 0,
+      paidAmount,
+      notes,
+      invoiceNo: parseInvoiceNoFromNotes(notes),
+      durationMonths,
+      monthlyShare: rawNumber(cell(sheet, r, 12)) ?? amort?.monthlyShare ?? null,
+      startMonth: rawNumber(cell(sheet, r, 13)) ?? amort?.startMonth ?? null,
+      startYear: rawNumber(cell(sheet, r, 14)) ?? amort?.startYear ?? null,
+      endMonth: rawNumber(cell(sheet, r, 15)) ?? amort?.endMonth ?? null,
+      endYear: rawNumber(cell(sheet, r, 16)) ?? amort?.endYear ?? null,
+      startDate: parseDate(cell(sheet, r, 17)) ?? amort?.startDate ?? null,
+      endDate: parseDate(cell(sheet, r, 18)) ?? amort?.endDate ?? null,
+      excelMonthLabel: str(cell(sheet, r, 2)) || null,
+    };
+
+    await prisma.expense.upsert({
+      where: { excelRow },
+      create: { ...expenseData, excelRow },
+      update: expenseData,
     });
     count++;
   }
 
   console.log(`  Gider Girişi → ${count} expenses`);
+  const removed = await dedupeLegacyExpenses(prisma);
+  if (removed > 0) console.log(`  Eski çift kayıtlar → ${removed} silindi`);
+  const synced = await syncExpenseCategoriesFromRecords(prisma);
+  if (synced > 0) console.log(`  Gider kategorileri → ${synced} eksik ürün/genel tür eklendi`);
 }
 
 // =============================================================================
@@ -358,12 +388,29 @@ async function importSales(wb: XLSXType.WorkBook) {
     let profitMargin: number | null;
 
     if (hasWorkbookTotal) {
-      purchaseUnitCost = wbPurchaseUnitCost;
-      totalUnitCost = toNumber(cell(sheet, r, 15));
-      profitMargin =
-        cell(sheet, r, 16) != null
-          ? toNumber(cell(sheet, r, 16))
-          : calcSaleCosting({ unitPrice, quantity, vatRate, purchaseUnitCost, productionUnitCost, overheadUnitCost }).profitMargin;
+      purchaseUnitCost =
+        wbPurchaseUnitCost ||
+        weightedAveragePurchaseCost(purchasesByProduct.get(productId) ?? []);
+      const production = productionUnitCost ?? 0;
+      const overhead = overheadUnitCost ?? 0;
+      if (wbPurchaseUnitCost) {
+        totalUnitCost = toNumber(cell(sheet, r, 15));
+        profitMargin =
+          cell(sheet, r, 16) != null
+            ? toNumber(cell(sheet, r, 16))
+            : calcSaleCosting({ unitPrice, quantity, vatRate, purchaseUnitCost, productionUnitCost: production, overheadUnitCost: overhead }).profitMargin;
+      } else {
+        const costing = calcSaleCosting({
+          unitPrice,
+          quantity,
+          vatRate,
+          purchaseUnitCost,
+          productionUnitCost: production,
+          overheadUnitCost: overhead,
+        });
+        totalUnitCost = costing.totalUnitCost;
+        profitMargin = costing.profitMargin;
+      }
     } else {
       purchaseUnitCost =
         wbPurchaseUnitCost || weightedAveragePurchaseCost(purchasesByProduct.get(productId) ?? []);
@@ -392,8 +439,8 @@ async function importSales(wb: XLSXType.WorkBook) {
         overheadUnitCost,
         totalUnitCost,
         profitMargin,
-        periodMonth: toNumber(cell(sheet, r, 17)) || date.getMonth() + 1,
-        periodYear: toNumber(cell(sheet, r, 18)) || date.getFullYear(),
+        periodMonth: toNumber(cell(sheet, r, 17)) || date.getUTCMonth() + 1,
+        periodYear: toNumber(cell(sheet, r, 18)) || date.getUTCFullYear(),
       },
     });
     count++;
@@ -441,30 +488,14 @@ async function importCashFlows(
 // =============================================================================
 // 7. Yeni Ürün takip — new-product pipeline (TRANSPOSED layout)
 //
-// Attributes run down column A; each product occupies its own column (from M).
+// Attributes run down column A (50 rows); each product occupies a column from M.
 // =============================================================================
 
-const DEV_ATTRIBUTE_ROWS: Record<string, number> = {
-  productName: 0,
-  startDate: 1,
-  supplierName: 2,
-  orderQuantity: 3,
-  productClass: 4,
-  isRawMaterial: 5,
-  orderPlaced: 6,
-  priceReceived: 7,
-  sampleReceived: 8,
-  sampleApproved: 9,
-  productionBegun: 10,
-  productionDone: 11,
-  notes: 12,
-};
-
-function toBool(value: unknown): boolean | null {
-  const s = str(value).toLowerCase();
-  if (!s) return null;
-  return ["evet", "yes", "true", "1", "x", "✓", "tamam", "ok"].includes(s);
-}
+import {
+  legacyFieldsFromAttributes,
+  readDevAttributes,
+  URUN_TAKIP_FIRST_COL,
+} from "../lib/productDevelopmentImport.js";
 
 async function importProductDevelopments(wb: XLSXType.WorkBook) {
   const sheet = wb.Sheets["Yeni Ürün takip"];
@@ -472,29 +503,22 @@ async function importProductDevelopments(wb: XLSXType.WorkBook) {
   const range = XLSX.utils.decode_range(sheet["!ref"] ?? "A1");
   let count = 0;
 
-  // Product columns start after the label column; scan from B onward.
-  for (let c = 1; c <= range.e.c; c++) {
-    const productName = str(cell(sheet, DEV_ATTRIBUTE_ROWS.productName, c));
+  for (let c = URUN_TAKIP_FIRST_COL; c <= range.e.c; c++) {
+    const productName = str(cell(sheet, 0, c));
     if (!productName) continue;
+
+    const attributes = readDevAttributes(sheet, c, cell);
+    const legacy = legacyFieldsFromAttributes(attributes, productName, {
+      startDate: cell(sheet, 1, c),
+      supplier: cell(sheet, 2, c),
+      quantity: cell(sheet, 3, c),
+    });
 
     await prisma.productDevelopment.create({
       data: {
-        productName,
+        ...legacy,
         productId: productIdByName.get(productName) ?? null,
-        startDate: parseDate(cell(sheet, DEV_ATTRIBUTE_ROWS.startDate, c)),
-        supplierName: str(cell(sheet, DEV_ATTRIBUTE_ROWS.supplierName, c)) || null,
-        orderQuantity: cell(sheet, DEV_ATTRIBUTE_ROWS.orderQuantity, c) != null
-          ? toNumber(cell(sheet, DEV_ATTRIBUTE_ROWS.orderQuantity, c))
-          : null,
-        productClass: str(cell(sheet, DEV_ATTRIBUTE_ROWS.productClass, c)) || null,
-        isRawMaterial: toBool(cell(sheet, DEV_ATTRIBUTE_ROWS.isRawMaterial, c)),
-        orderPlaced: toBool(cell(sheet, DEV_ATTRIBUTE_ROWS.orderPlaced, c)),
-        priceReceived: toBool(cell(sheet, DEV_ATTRIBUTE_ROWS.priceReceived, c)),
-        sampleReceived: toBool(cell(sheet, DEV_ATTRIBUTE_ROWS.sampleReceived, c)),
-        sampleApproved: toBool(cell(sheet, DEV_ATTRIBUTE_ROWS.sampleApproved, c)),
-        productionBegun: toBool(cell(sheet, DEV_ATTRIBUTE_ROWS.productionBegun, c)),
-        productionDone: toBool(cell(sheet, DEV_ATTRIBUTE_ROWS.productionDone, c)),
-        notes: str(cell(sheet, DEV_ATTRIBUTE_ROWS.notes, c)) || null,
+        attributes,
       },
     });
     count++;
@@ -509,7 +533,8 @@ async function importProductDevelopments(wb: XLSXType.WorkBook) {
 
 async function main() {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  const override = process.argv[2];
+  const args = process.argv.slice(2).filter((a) => !a.startsWith("--"));
+  const override = args[0];
   const envPath = process.env.EXCEL_SOURCE_PATH;
   // Resolve relative to the backend root (two levels up from src/scripts).
   const backendRoot = path.resolve(__dirname, "..", "..");
@@ -520,7 +545,13 @@ async function main() {
       : path.resolve(backendRoot, "..", "Kadim Naturel dosyasının kopyası.xlsx");
 
   console.log(`Reading workbook: ${filePath}`);
-  const wb = XLSX.readFile(filePath, { cellDates: true });
+  const wb = XLSX.readFile(filePath, { cellDates: false });
+
+  if (process.argv.includes("--expenses-only")) {
+    console.log("Re-importing Gider Girişi (manuel kayıtlar korunur)…");
+    await importExpenses(wb);
+    return;
+  }
 
   console.log("Resetting database…");
   await resetDatabase();

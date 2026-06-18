@@ -1,23 +1,7 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { createBom } from "@/lib/api";
-
-const API_URL = process.env.API_URL ?? "http://localhost:4000/api";
-
-/** Authed DELETE mirroring src/lib/api.ts (no deleteBom helper is exported). */
-async function apiDelete(path: string) {
-  const token = (await cookies()).get("token")?.value;
-  const res = await fetch(`${API_URL}${path}`, {
-    method: "DELETE",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    cache: "no-store",
-  });
-  if (!res.ok && res.status !== 204) {
-    throw new Error(`DELETE ${path} failed: ${res.status}`);
-  }
-}
+import { createBom, deleteBom, updateBom } from "@/lib/api";
 
 type Comp = { componentProductId: number; quantity: number };
 
@@ -36,20 +20,63 @@ function parseComponents(raw: FormDataEntryValue | null): Comp[] {
   }
 }
 
-export async function createBomAction(formData: FormData) {
+function buildPayload(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const productId = Number(formData.get("productId"));
   const components = parseComponents(formData.get("components"));
+  const isActive = formData.get("isActive") === "on" || formData.get("isActive") === "true";
 
   if (!name || !productId || components.length === 0) {
-    throw new Error("Geçersiz reçete bilgisi.");
+    return { error: "Reçete adı, mamul ve en az bir bileşen zorunludur." as const };
   }
 
-  await createBom({ productId, name, components });
-  revalidatePath("/uretim-recetesi");
+  return { body: { name, productId, components, isActive } };
 }
 
-export async function deleteBomAction(id: number) {
-  await apiDelete(`/boms/${id}`);
+export async function createRecete(formData: FormData): Promise<void | { error?: string }> {
+  const payload = buildPayload(formData);
+  if ("error" in payload) return payload;
+
+  try {
+    await createBom(payload.body);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Reçete kaydedilemedi." };
+  }
+
   revalidatePath("/uretim-recetesi");
+  revalidatePath("/uretim-emri");
+}
+
+export async function updateRecete(
+  id: number,
+  formData: FormData
+): Promise<void | { error?: string }> {
+  const payload = buildPayload(formData);
+  if ("error" in payload) return payload;
+
+  try {
+    await updateBom(id, payload.body);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Reçete güncellenemedi." };
+  }
+
+  revalidatePath("/uretim-recetesi");
+  revalidatePath("/uretim-emri");
+}
+
+export async function deleteRecete(id: number) {
+  await deleteBom(id);
+  revalidatePath("/uretim-recetesi");
+  revalidatePath("/uretim-emri");
+}
+
+/** @deprecated use createRecete */
+export async function createBomAction(formData: FormData) {
+  const result = await createRecete(formData);
+  if (result?.error) throw new Error(result.error);
+}
+
+/** @deprecated use deleteRecete */
+export async function deleteBomAction(id: number) {
+  return deleteRecete(id);
 }

@@ -16,12 +16,96 @@ export function monthNameTr(month: number): string {
   return MONTH_NAMES_TR[month - 1] ?? "";
 }
 
-/** Parse a spreadsheet/string/Date value into a Date, or null when invalid. */
+/** Store a calendar day at UTC noon (avoids timezone off-by-one in UI). */
+export function utcCalendarDate(year: number, month: number, day: number): Date {
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+}
+
+/** Shift a stored calendar date by N days (keeps UTC noon convention). */
+export function shiftCalendarDate(value: Date, days: number): Date {
+  const y = value.getUTCFullYear();
+  const m = value.getUTCMonth();
+  const d = value.getUTCDate();
+  return new Date(Date.UTC(y, m, d + days, 12, 0, 0));
+}
+
+/** Map an instant to its Europe/Istanbul calendar day, stored at UTC noon. */
+export function calendarDateFromInstant(value: Date): Date {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Istanbul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(value);
+  const [year, month, day] = parts.split("-").map(Number);
+  return utcCalendarDate(year, month, day);
+}
+
+/** Excel serial (1900 date system) → calendar date. */
+export function parseExcelSerial(serial: number): Date {
+  const days = Math.floor(serial);
+  // 25569 = Excel day index for 1970-01-01 (Windows 1900 date system).
+  const instant = new Date((days - 25_569) * 86_400_000);
+  return utcCalendarDate(
+    instant.getUTCFullYear(),
+    instant.getUTCMonth() + 1,
+    instant.getUTCDate(),
+  );
+}
+
+/** Parse a spreadsheet/string/Date/serial value into a calendar Date, or null when invalid. */
 export function parseDate(value: unknown): Date | null {
-  if (!value) return null;
-  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
-  const parsed = new Date(String(value));
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+  if (value === null || value === undefined || value === "") return null;
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return null;
+    // SheetJS often yields UTC midnight one day before the Excel UI date (TR).
+    if (
+      value.getUTCHours() === 0 &&
+      value.getUTCMinutes() === 0 &&
+      value.getUTCSeconds() === 0 &&
+      value.getUTCMilliseconds() === 0
+    ) {
+      return utcCalendarDate(
+        value.getUTCFullYear(),
+        value.getUTCMonth() + 1,
+        value.getUTCDate() + 1,
+      );
+    }
+    return calendarDateFromInstant(value);
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return parseExcelSerial(value);
+  }
+  const raw = String(value).trim();
+  const isoDay = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoDay) {
+    return utcCalendarDate(Number(isoDay[1]), Number(isoDay[2]), Number(isoDay[3]));
+  }
+  const dmY = raw.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/);
+  if (dmY) {
+    return utcCalendarDate(Number(dmY[3]), Number(dmY[2]), Number(dmY[1]));
+  }
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : calendarDateFromInstant(parsed);
+}
+
+/** Coerce a spreadsheet cell into a finite number, or null when blank/invalid. */
+export function rawNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = typeof value === "number" ? value : Number(String(value).replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Expenses in Excel sheet order; manual rows (no excelRow) come last. */
+export function sortExpensesByExcelRow<T extends { excelRow: number | null; id: number }>(
+  rows: T[],
+): T[] {
+  return [...rows].sort((a, b) => {
+    if (a.excelRow == null && b.excelRow == null) return a.id - b.id;
+    if (a.excelRow == null) return 1;
+    if (b.excelRow == null) return -1;
+    return a.excelRow - b.excelRow;
+  });
 }
 
 /** Coerce a spreadsheet cell into a finite number, falling back when blank/NaN. */

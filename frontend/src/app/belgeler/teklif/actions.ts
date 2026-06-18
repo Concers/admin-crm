@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createQuote, deleteQuote, type DocLine } from "@/lib/api";
+import { createQuote, deleteQuote, updateQuote, type DocLine } from "@/lib/api";
+import { dateInputToApi } from "@/lib/dates";
 
 function parseLines(raw: FormDataEntryValue | null): DocLine[] {
   try {
@@ -19,22 +20,75 @@ function parseLines(raw: FormDataEntryValue | null): DocLine[] {
   }
 }
 
-export async function createQuoteAction(formData: FormData) {
+const VALID_STATUS = new Set(["DRAFT", "SENT", "ACCEPTED", "REJECTED"]);
+
+function buildPayload(formData: FormData) {
   const partnerId = Number(formData.get("partnerId"));
-  const validUntilRaw = String(formData.get("validUntil") ?? "").trim();
   const lines = parseLines(formData.get("lines"));
+  const tarih = String(formData.get("tarih") ?? "").trim();
+  const gecerlilik = String(formData.get("gecerlilik") ?? "").trim();
+  const status = String(formData.get("status") ?? "DRAFT").trim();
+  const notes = String(formData.get("notlar") ?? "").trim() || null;
+  const date = tarih ? dateInputToApi(tarih) : undefined;
+  const validUntil = gecerlilik ? dateInputToApi(gecerlilik) : null;
 
   if (!partnerId || lines.length === 0) {
-    throw new Error("Geçersiz teklif bilgisi.");
+    return { error: "Cari ve en az bir kalem zorunludur." as const };
   }
 
-  const validUntil = validUntilRaw ? new Date(validUntilRaw).toISOString() : null;
+  return {
+    body: {
+      partnerId,
+      lines,
+      status: VALID_STATUS.has(status) ? status : "DRAFT",
+      notes,
+      validUntil,
+      ...(date ? { date } : {}),
+    },
+  };
+}
 
-  await createQuote({ partnerId, validUntil, lines });
+export async function createTeklif(formData: FormData): Promise<void | { error?: string }> {
+  const payload = buildPayload(formData);
+  if ("error" in payload) return payload;
+
+  try {
+    await createQuote(payload.body);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Teklif kaydedilemedi." };
+  }
+
   revalidatePath("/belgeler/teklif");
 }
 
-export async function deleteQuoteAction(id: number) {
+export async function updateTeklif(
+  id: number,
+  formData: FormData
+): Promise<void | { error?: string }> {
+  const payload = buildPayload(formData);
+  if ("error" in payload) return payload;
+
+  try {
+    await updateQuote(id, payload.body);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Teklif güncellenemedi." };
+  }
+
+  revalidatePath("/belgeler/teklif");
+}
+
+export async function deleteTeklif(id: number) {
   await deleteQuote(id);
   revalidatePath("/belgeler/teklif");
+}
+
+/** @deprecated use deleteTeklif */
+export async function deleteQuoteAction(id: number) {
+  return deleteTeklif(id);
+}
+
+/** @deprecated use createTeklif */
+export async function createQuoteAction(formData: FormData) {
+  const result = await createTeklif(formData);
+  if (result?.error) throw new Error(result.error);
 }

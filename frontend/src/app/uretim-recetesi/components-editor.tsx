@@ -17,10 +17,19 @@ const emptyRow: Row = { componentProductId: "", quantity: "1" };
  */
 export function ComponentsEditor({
   products,
+  initialComponents,
 }: {
   products: { id: number; name: string }[];
+  initialComponents?: { componentProductId: number; quantity: number }[];
 }) {
-  const [rows, setRows] = useState<Row[]>([{ ...emptyRow }]);
+  const [rows, setRows] = useState<Row[]>(() =>
+    initialComponents?.length
+      ? initialComponents.map((c) => ({
+          componentProductId: String(c.componentProductId),
+          quantity: String(c.quantity),
+        }))
+      : [{ ...emptyRow }]
+  );
 
   function update(i: number, patch: Partial<Row>) {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -44,12 +53,14 @@ export function ComponentsEditor({
   return (
     <div className="space-y-3">
       <input type="hidden" name="components" value={serialised} />
-      <Label>Bileşenler *</Label>
+      <Label className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+        Bileşenler *
+      </Label>
       <div className="space-y-2">
         {rows.map((row, i) => (
           <div
             key={i}
-            className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_120px_auto] sm:items-end"
+            className="grid grid-cols-1 gap-2 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 sm:grid-cols-[1fr_100px_auto] sm:items-end"
           >
             <Select
               value={row.componentProductId}
@@ -85,10 +96,15 @@ export function ComponentsEditor({
           </div>
         ))}
       </div>
-      <Button type="button" variant="outline" size="sm" onClick={addRow}>
-        <Plus className="h-4 w-4" />
-        Bileşen Ekle
-      </Button>
+      <div className="flex items-center justify-between border-t border-[var(--border)] pt-3">
+        <Button type="button" variant="outline" size="sm" onClick={addRow}>
+          <Plus className="h-4 w-4" />
+          Bileşen Ekle
+        </Button>
+        <span className="text-sm font-medium text-[var(--muted-foreground)]">
+          {rows.filter((r) => r.componentProductId && Number(r.quantity) > 0).length} bileşen
+        </span>
+      </div>
     </div>
   );
 }

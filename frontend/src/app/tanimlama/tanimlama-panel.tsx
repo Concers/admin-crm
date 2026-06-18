@@ -41,7 +41,7 @@ export function TanimlamaPanel({
   const styles = accentStyles[accent];
 
   return (
-    <Card className="flex flex-col overflow-hidden transition-shadow hover:shadow-md">
+    <Card className="flex flex-col transition-shadow hover:shadow-md">
       <CardHeader className="border-b border-[var(--border)] bg-gradient-to-r from-[var(--card)] to-[var(--muted)]/40 pb-4">
         <div className="flex items-start gap-3">
           <div

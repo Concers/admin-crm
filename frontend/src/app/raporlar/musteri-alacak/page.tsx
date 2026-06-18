@@ -23,6 +23,7 @@ export default async function MusteriAlacakPage() {
       <DataTable
         rows={rows}
         searchKeys={["ad"]}
+        searchPlaceholder="Cari ara…"
         columns={[
           { key: "ad", label: "Cari" },
           { key: "satisToplam", label: "Satış Toplamı" },

@@ -8,6 +8,7 @@ import { prisma } from "../lib/prisma.js";
 import { asyncHandler, parseId } from "../lib/http.js";
 import { requireRole, type AuthedRequest } from "../lib/auth.js";
 import { recordAudit } from "../lib/audit.js";
+import { normalizePartnerType } from "../lib/partnerTypes.js";
 
 export const masterDataRouter = Router();
 
@@ -46,11 +47,12 @@ masterDataRouter.post(
   asyncHandler(async (req, res) => {
     const { name, type, contactInfo, phone, email, address, priceTier } = req.body ?? {};
     if (!name || !type) return res.status(400).json({ error: "name and type are required" });
+    const partnerType = normalizePartnerType(type);
     // Upsert by unique name so re-adding an existing partner just updates it.
     const partner = await prisma.partner.upsert({
       where: { name: String(name).trim() },
-      update: { type, contactInfo, phone, email, address, priceTier },
-      create: { name: String(name).trim(), type, contactInfo, phone, email, address, priceTier },
+      update: { type: partnerType, contactInfo, phone, email, address, priceTier },
+      create: { name: String(name).trim(), type: partnerType, contactInfo, phone, email, address, priceTier },
     });
     res.status(201).json(partner);
   }),
@@ -64,7 +66,15 @@ masterDataRouter.put(
     const { name, type, contactInfo, phone, email, address, priceTier } = req.body ?? {};
     const partner = await prisma.partner.update({
       where: { id },
-      data: { name: name?.trim(), type, contactInfo, phone, email, address, priceTier },
+      data: {
+        name: name?.trim(),
+        type: type != null ? normalizePartnerType(type) : undefined,
+        contactInfo,
+        phone,
+        email,
+        address,
+        priceTier,
+      },
     });
     res.json(partner);
   }),
@@ -196,6 +206,7 @@ function buildDevData(body: Record<string, unknown>) {
     productionBegun: bool(body.productionBegun),
     productionDone: bool(body.productionDone),
     notes: str(body.notes),
+    attributes: body.attributes ?? undefined,
   };
 }
 

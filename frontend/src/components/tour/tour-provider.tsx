@@ -1,6 +1,5 @@
 "use client";
 
-import "shepherd.js/dist/css/shepherd.css";
 import {
   createContext,
   useCallback,

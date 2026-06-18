@@ -35,6 +35,8 @@ export default async function TedarikciRaporPage({
       <DataTable
         rows={tedarikciler.map((t) => ({ ad: t.name, tip: t.type }))}
         searchKeys={["ad"]}
+        searchPlaceholder="Tedarikçi ara…"
+        defaultSort={{ key: "ad", asc: true }}
         columns={[
           { key: "ad", label: "Tedarikçi" },
           { key: "tip", label: "Tip" },

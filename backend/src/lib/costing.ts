@@ -34,11 +34,22 @@ export interface SaleCostBreakdown {
  */
 export async function computeSaleCosts(
   prisma: PrismaClient,
-  params: { productId: number; date: Date; quantity: number; unitPrice: number },
+  params: { productId: number; date: Date; quantity: number; unitPrice: number; saleId?: number },
 ): Promise<SaleCostBreakdown> {
-  const { productId, date, quantity, unitPrice } = params;
-  const month = date.getMonth() + 1;
-  const year = date.getFullYear();
+  const { productId, date, quantity, unitPrice, saleId } = params;
+  const month = date.getUTCMonth() + 1;
+  const year = date.getUTCFullYear();
+
+  const existingSale = saleId
+    ? await prisma.sale.findUnique({
+        where: { id: saleId },
+        select: { quantity: true, periodMonth: true, periodYear: true },
+      })
+    : null;
+
+  const periodMonth = existingSale?.periodMonth ?? month;
+  const periodYear = existingSale?.periodYear ?? year;
+  const priorQty = existingSale?.quantity ?? 0;
 
   const [purchases, productExpenses, productSalesQty, overheadExpenses, monthSalesQty] =
     await Promise.all([
@@ -58,7 +69,7 @@ export async function computeSaleCosts(
       }),
       // O denominator — total quantity sold in the sale's month/year.
       prisma.sale.aggregate({
-        where: { periodMonth: month, periodYear: year },
+        where: { periodMonth, periodYear },
         _sum: { quantity: true },
       }),
     ]);
@@ -67,11 +78,12 @@ export async function computeSaleCosts(
 
   // Include the sale being entered in the denominators (the workbook recomputed
   // over the full sheet, so the new row participates in its own allocation).
-  const totalProductQty = (productSalesQty._sum.quantity ?? 0) + quantity;
+  // When updating an existing row, subtract its prior quantity first.
+  const totalProductQty = (productSalesQty._sum.quantity ?? 0) - priorQty + quantity;
   const productionUnitCost =
     totalProductQty > 0 ? (productExpenses._sum.totalAmount ?? 0) / totalProductQty : 0;
 
-  const totalMonthQty = (monthSalesQty._sum.quantity ?? 0) + quantity;
+  const totalMonthQty = (monthSalesQty._sum.quantity ?? 0) - priorQty + quantity;
   const overheadUnitCost =
     totalMonthQty > 0 ? (overheadExpenses._sum.monthlyShare ?? 0) / totalMonthQty : 0;
 

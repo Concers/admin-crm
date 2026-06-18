@@ -1,46 +1,78 @@
 import { PageShell } from "@/components/page-shell";
-import { Card, CardContent } from "@/components/ui/card";
-import { getDiscounts } from "@/lib/api";
-import { formatCurrency, formatDate } from "@/lib/calculations";
-import { IskontoForm } from "./iskonto-form";
-import { IskontoList, type IskontoRow } from "./iskonto-list";
+import { StatCard, PanelCard } from "@/components/ui/stat-card";
+import { CheckCircle2, Percent, Tag, Wallet } from "lucide-react";
+import { getDiscounts, getPartners, getProducts } from "@/lib/api";
+import { IskontoWorkspace } from "./iskonto-workspace";
+import { mapIskontoRows } from "./iskonto-rows";
 
 export const dynamic = "force-dynamic";
 
 export default async function IskontolarPage() {
-  const discounts = await getDiscounts();
+  const [discounts, partners, products] = await Promise.all([
+    getDiscounts(),
+    getPartners(),
+    getProducts(),
+  ]);
 
-  const rows: IskontoRow[] = discounts.map((d) => {
-    const percent = d.percent != null ? Number(d.percent) : null;
-    const amount = d.amount != null ? Number(d.amount) : null;
-    const validFrom = d.validFrom ? String(d.validFrom) : "";
-    const validTo = d.validTo ? String(d.validTo) : "";
+  const partnerMap = new Map(partners.map((p) => [p.id, p.name]));
+  const productMap = new Map(products.map((p) => [p.id, p.name]));
 
-    let gecerlilik = "—";
-    if (validFrom || validTo) {
-      const from = validFrom ? formatDate(new Date(validFrom)) : "—";
-      const to = validTo ? formatDate(new Date(validTo)) : "—";
-      gecerlilik = `${from} - ${to}`;
-    }
-
-    return {
-      id: Number(d.id),
-      ad: String(d.name ?? ""),
-      yuzde: percent != null ? `${percent}%` : "—",
-      tutar: amount != null ? formatCurrency(amount) : "—",
-      gecerlilik,
-    };
+  const rows = mapIskontoRows(discounts, {
+    partnerName: (id) => (id ? partnerMap.get(id) ?? "—" : "—"),
+    productName: (id) => (id ? productMap.get(id) ?? "—" : "—"),
   });
 
+  const ozet = {
+    kayit: discounts.length,
+    aktif: discounts.filter((d) => d.isActive).length,
+    yuzde: discounts.filter((d) => d.percent != null).length,
+    tutar: discounts.filter((d) => d.amount != null).length,
+  };
+
+  const partnerOpts = partners.map((p) => ({ id: p.id, name: p.name }));
+  const productOpts = products.map((p) => ({ id: p.id, name: p.name }));
+
   return (
-    <PageShell title="İskontolar">
-      <Card>
-        <CardContent>
-          <h3 className="mb-4 font-semibold">Yeni İskonto</h3>
-          <IskontoForm />
-        </CardContent>
-      </Card>
-      <IskontoList rows={rows} />
+    <PageShell
+      title="İskontolar"
+      description="Yüzde ve tutar iskontolarını tanımlayın, cari ve ürün kapsamına göre yönetin"
+    >
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:gap-4">
+        <StatCard
+          label="İskonto Kaydı"
+          value={ozet.kayit}
+          icon={Percent}
+          accent="rose"
+          subtext={`${ozet.aktif} aktif`}
+        />
+        <StatCard
+          label="Yüzdeli"
+          value={ozet.yuzde}
+          icon={Tag}
+          accent="indigo"
+        />
+        <StatCard
+          label="Tutarlı"
+          value={ozet.tutar}
+          icon={Wallet}
+          accent="amber"
+        />
+        <StatCard
+          label="Aktif Oranı"
+          value={ozet.kayit > 0 ? `%${Math.round((ozet.aktif / ozet.kayit) * 100)}` : "—"}
+          icon={CheckCircle2}
+          accent="emerald"
+        />
+      </div>
+
+      <PanelCard
+        icon={Percent}
+        title="İskonto Tanımları"
+        description="Tür, değer, cari/ürün kapsamı ve geçerlilik — satıra tıklayarak düzenleyin"
+        accent="rose"
+      >
+        <IskontoWorkspace rows={rows} partners={partnerOpts} products={productOpts} />
+      </PanelCard>
     </PageShell>
   );
 }
