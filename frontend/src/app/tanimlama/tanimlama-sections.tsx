@@ -27,10 +27,20 @@ export function TedarikciListClient({
   );
 }
 
-export function UrunListClient({ rows }: { rows: { id: number; ad: string; raf: string }[] }) {
+export function UrunListClient({
+  rows,
+  raflar,
+  doluRaflar,
+}: {
+  rows: { id: number; ad: string; raf: string }[];
+  raflar: { code: string; location: string | null }[];
+  doluRaflar: string[];
+}) {
   return (
     <UrunList
       rows={rows}
+      raflar={raflar}
+      doluRaflar={doluRaflar}
       onUpdate={updateUrun}
       onDelete={deleteUrun}
     />

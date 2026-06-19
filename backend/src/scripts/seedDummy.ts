@@ -57,6 +57,22 @@ async function main() {
     `Master data: ${partners.length} partners (${customers.length} cust / ${suppliers.length} supp), ${products.length} products`,
   );
 
+  // -- Shelves (raf grid) — A–E koridorları × 01–12 -------------------------
+  // Ürünlerin shelfLocation kodlarıyla uyumlu; Tanımlama ve Raf Takibi
+  // ekranlarında boş raflar bu tanımlı raflardan türetilir. Idempotent: var
+  // olan rafa dokunmaz, yalnızca eksikleri ekler.
+  const shelfCodes = ["A", "B", "C", "D", "E"].flatMap((row) =>
+    Array.from({ length: 12 }, (_, i) => ({ code: `${row}-${String(i + 1).padStart(2, "0")}`, location: `${row} Koridoru` })),
+  );
+  for (const s of shelfCodes) {
+    await prisma.shelf.upsert({
+      where: { code: s.code },
+      update: {},
+      create: { code: s.code, location: s.location, isActive: true },
+    });
+  }
+  console.log(`Shelves: ${shelfCodes.length} raf (upsert)`);
+
   // -- Clear dummy-seedable tables (children first) -------------------------
   console.log("Clearing dummy-seedable tables…");
   await prisma.paymentAllocation.deleteMany();

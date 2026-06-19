@@ -4,6 +4,7 @@ import {
   getPartners,
   getProducts,
   getExpenseCategories,
+  getShelves,
   type PartnerType,
 } from "@/lib/api";
 import {
@@ -23,15 +24,27 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function TanimlamaPage() {
-  const [partnerler, urunlerData, genelGiderData, urunGiderData] = await Promise.all([
+  const [partnerler, urunlerData, genelGiderData, urunGiderData, shelvesData] = await Promise.all([
     getPartners(),
     getProducts(),
     getExpenseCategories("GENERAL"),
     getExpenseCategories("PRODUCT"),
+    getShelves(),
   ]);
 
   const sortByName = <T extends { name: string }>(arr: T[]) =>
     [...arr].sort((a, b) => a.name.localeCompare(b.name, "tr"));
+
+  // Raf seçimi: ürün rafı serbest metin yerine tanımlı raflardan seçilir.
+  // Dolu raflar = bir ürüne atanmış kodlar; boş raflar bunların dışındakiler.
+  const occupiedCodes = new Set(
+    urunlerData.map((u) => u.shelfLocation?.trim()).filter((c): c is string => Boolean(c)),
+  );
+  const aktifRaflar = shelvesData
+    .filter((s) => s.isActive)
+    .map((s) => ({ code: s.code, location: s.location }))
+    .sort((a, b) => a.code.localeCompare(b.code, "tr"));
+  const bosRaflar = aktifRaflar.filter((s) => !occupiedCodes.has(s.code));
 
   const tedarikciler = sortByName(partnerler).map((p) => ({
     id: p.id,
@@ -93,8 +106,8 @@ export default async function TanimlamaPage() {
             count={urunler.length}
             accent="emerald"
           >
-            <UrunEkleForm />
-            <UrunListClient rows={urunler} />
+            <UrunEkleForm bosRaflar={bosRaflar} />
+            <UrunListClient rows={urunler} raflar={aktifRaflar} doluRaflar={[...occupiedCodes]} />
           </TanimlamaPanel>
 
           <TanimlamaPanel
