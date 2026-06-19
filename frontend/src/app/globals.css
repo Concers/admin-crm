@@ -1,20 +1,32 @@
 @import "tailwindcss";
 
 :root {
-  /* Palet: 732229 · 222613 · 8b8c5e · f2eddf · 401a11 — toprak tonu, açık tema.
-     Açık tonlar (muted/border/accent/muted-foreground) bu beş renkten türetildi. */
-  --background: #f2eddf; /* krem */
-  --foreground: #222613; /* koyu zeytin-siyah (metin) */
+  /*
+   * Sonbahar paleti — Kadim ERP
+   * Bordo · zeytin yeşili · altın · mürdüm · gece laciverdi · beyaz zemin
+   */
+  --background: #ffffff;
+  --foreground: #261515;
+  --dark: #261515;
   --card: #ffffff;
-  --muted: #ece4d2; /* krem tint (türetilmiş) */
-  --muted-foreground: #6f5b46; /* sıcak kahve-gri, okunabilir (türetilmiş) */
-  --border: #ddd2bb; /* sıcak kenarlık (türetilmiş) */
-  --primary: #732229; /* bordo (marka) */
-  --primary-foreground: #f2eddf; /* bordo üzeri krem */
-  --accent: #e6e3cf; /* açık zeytin-krem (türetilmiş) */
-  --ring: #732229;
-  --success: #059669;
-  --danger: #dc2626;
+  --muted: #f7f5f2;
+  --mauve: #8c6c7e;
+  --brown: #8c6c7e;
+  --muted-foreground: #8c6c7e;
+  --border: #e0d8dc;
+  --primary: #590219;
+  --primary-foreground: #ffffff;
+  --accent: #faf5ef;
+  --ring: #590219;
+  --blue: #022e40;
+  --blue-light: #3383a3;
+  --green: #585925;
+  --green-light: #7a7d52;
+  --green-dark: #3f4218;
+  --success: #585925;
+  --amber: #bf8f36;
+  --amber-light: #cfa853;
+  --danger: #8b3a2a; /* pas kırmızısı — sonbahar uyarı */
   --radius: 0.75rem;
 }
 
@@ -29,6 +41,99 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-accent: var(--accent);
   --color-ring: var(--ring);
+  --color-success: var(--success);
+  /* Marka yeşili — Tailwind emerald-* sınıfları */
+  --color-emerald-50: #f5f0e8;
+  --color-emerald-100: #e8e4d4;
+  --color-emerald-200: #cacdab;
+  --color-emerald-300: #a8ab7f;
+  --color-emerald-400: #85875e;
+  --color-emerald-500: #585925;
+  --color-emerald-600: #47471e;
+  --color-emerald-700: #3a3a18;
+  --color-emerald-800: #2e2e13;
+  --color-emerald-900: #22220e;
+  --color-emerald-950: #141408;
+  /* Marka lacivert — Tailwind blue-* ve sky-* (bilgi / nakit vurguları) */
+  --color-blue-50: #edf3f6;
+  --color-blue-100: #cce0e8;
+  --color-blue-200: #99c1d1;
+  --color-blue-300: #66a2ba;
+  --color-blue-400: #3383a3;
+  --color-blue-500: #022e40;
+  --color-blue-600: #022636;
+  --color-blue-700: #011e2b;
+  --color-blue-800: #011620;
+  --color-blue-900: #010e15;
+  --color-blue-950: #000810;
+  --color-sky-50: #edf3f6;
+  --color-sky-100: #cce0e8;
+  --color-sky-200: #99c1d1;
+  --color-sky-300: #66a2ba;
+  --color-sky-400: #3383a3;
+  --color-sky-500: #022e40;
+  --color-sky-600: #022636;
+  --color-sky-700: #011e2b;
+  --color-sky-800: #011620;
+  --color-sky-900: #010e15;
+  --color-indigo-50: #edf3f6;
+  --color-indigo-100: #cce0e8;
+  --color-indigo-200: #99c1d1;
+  --color-indigo-300: #66a2ba;
+  --color-indigo-400: #3383a3;
+  --color-indigo-500: #024058;
+  --color-indigo-600: #022e40;
+  --color-indigo-700: #011e2b;
+  --color-indigo-800: #011620;
+  --color-indigo-900: #010e15;
+  /* Marka altını — Tailwind amber-* (alım, uyarı, vade vurguları) */
+  --color-amber-50: #faf6ed;
+  --color-amber-100: #f3ead4;
+  --color-amber-200: #e7d5a9;
+  --color-amber-300: #dbc07e;
+  --color-amber-400: #cfa853;
+  --color-amber-500: #bf8f36;
+  --color-amber-600: #99722b;
+  --color-amber-700: #735520;
+  --color-amber-800: #4d3916;
+  --color-amber-900: #261c0b;
+  --color-amber-950: #130e05;
+  /* Pas kırmızısı — Tailwind rose-* (borç, gider, hata; pembe değil, kil/terrakota) */
+  --color-rose-50: #f7f3f1;
+  --color-rose-100: #ebe3df;
+  --color-rose-200: #d8c8c0;
+  --color-rose-300: #b89588;
+  --color-rose-400: #9a5c4a;
+  --color-rose-500: #8b3a2a;
+  --color-rose-600: #732f22;
+  --color-rose-700: #5c251b;
+  --color-rose-800: #451c14;
+  --color-rose-900: #2e120d;
+  --color-rose-950: #170906;
+  /* Kırmızı — Tailwind red-* (buton, toast, badge; rose ile aynı aile) */
+  --color-red-50: #f7f3f1;
+  --color-red-100: #ebe3df;
+  --color-red-200: #d8c8c0;
+  --color-red-300: #b89588;
+  --color-red-400: #9a5c4a;
+  --color-red-500: #8b3a2a;
+  --color-red-600: #732f22;
+  --color-red-700: #5c251b;
+  --color-red-800: #451c14;
+  --color-red-900: #2e120d;
+  --color-red-950: #170906;
+  /* Mürdüm — Tailwind violet-* (gider, ikincil vurgu; mor/pembe yerine) */
+  --color-violet-50: #f6f3f5;
+  --color-violet-100: #ebe4e8;
+  --color-violet-200: #d9cdd3;
+  --color-violet-300: #c0abb5;
+  --color-violet-400: #a68d9b;
+  --color-violet-500: #8c6c7e;
+  --color-violet-600: #735866;
+  --color-violet-700: #5a454f;
+  --color-violet-800: #423238;
+  --color-violet-900: #2a2024;
+  --color-violet-950: #151012;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -239,9 +344,9 @@ body {
 .dashboard-hero {
   background: linear-gradient(
     135deg,
-    #222613 0%,
-    #401a11 45%,
-    #732229 100%
+    #261515 0%,
+    #3a0112 45%,
+    #590219 100%
   );
 }
 

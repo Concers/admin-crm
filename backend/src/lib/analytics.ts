@@ -203,3 +203,244 @@ export async function getCashFlowProjection(months = 6, asOf: Date = new Date())
     return { ...b, cumulative: running };
   });
 }
+
+/** Monthly budget targets vs actual sales and expenses for a calendar year. */
+export async function getBudgetVarianceReport(year: number) {
+  const [targets, sales, expenses] = await Promise.all([
+    prisma.budgetTarget.findMany({ where: { year } }),
+    prisma.sale.findMany({
+      where: { date: { gte: new Date(year, 0, 1), lte: new Date(year, 11, 31, 23, 59, 59, 999) } },
+      select: { date: true, totalAmount: true },
+    }),
+    prisma.expense.findMany({
+      where: { date: { gte: new Date(year, 0, 1), lte: new Date(year, 11, 31, 23, 59, 59, 999) } },
+      select: { date: true, totalAmount: true, category: true },
+    }),
+  ]);
+
+  const targetMap = (metric: string, month: number, category?: string | null) =>
+    targets.find((t) => t.metric === metric && t.month === month && (t.category ?? null) === (category ?? null))?.amount ?? null;
+
+  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const monthRows = months.map((month) => {
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0, 23, 59, 59, 999);
+    const inMonth = <T,>(rows: T[], getDate: (r: T) => Date) =>
+      rows.filter((r) => {
+        const t = getDate(r).getTime();
+        return t >= start.getTime() && t <= end.getTime();
+      });
+
+    const salesActual = inMonth(sales, (s) => new Date(s.date)).reduce((sum, s) => sum + s.totalAmount, 0);
+    const expenseActual = inMonth(expenses, (e) => new Date(e.date)).reduce((sum, e) => sum + e.totalAmount, 0);
+    const salesTarget = targetMap("SALES_REVENUE", month);
+    const expenseTarget = targetMap("EXPENSE_TOTAL", month);
+
+    const categories = new Set([
+      ...targets.filter((t) => t.metric === "EXPENSE_CATEGORY" && t.month === month).map((t) => t.category!),
+      ...inMonth(expenses, (e) => new Date(e.date)).map((e) => e.category),
+    ]);
+
+    const categoryRows = [...categories].map((category) => {
+      const actual = inMonth(expenses, (e) => new Date(e.date))
+        .filter((e) => e.category === category)
+        .reduce((sum, e) => sum + e.totalAmount, 0);
+      const target = targetMap("EXPENSE_CATEGORY", month, category);
+      return {
+        category,
+        target,
+        actual,
+        variance: target != null ? actual - target : null,
+        variancePct: target != null && target > 0 ? ((actual - target) / target) * 100 : null,
+      };
+    });
+
+    return {
+      month,
+      sales: {
+        target: salesTarget,
+        actual: salesActual,
+        variance: salesTarget != null ? salesActual - salesTarget : null,
+        variancePct: salesTarget != null && salesTarget > 0 ? ((salesActual - salesTarget) / salesTarget) * 100 : null,
+      },
+      expenses: {
+        target: expenseTarget,
+        actual: expenseActual,
+        variance: expenseTarget != null ? expenseActual - expenseTarget : null,
+        variancePct: expenseTarget != null && expenseTarget > 0 ? ((expenseActual - expenseTarget) / expenseTarget) * 100 : null,
+      },
+      categories: categoryRows.sort((a, b) => b.actual - a.actual),
+    };
+  });
+
+  const totals = {
+    salesTarget: monthRows.reduce((s, m) => s + (m.sales.target ?? 0), 0),
+    salesActual: monthRows.reduce((s, m) => s + m.sales.actual, 0),
+    expenseTarget: monthRows.reduce((s, m) => s + (m.expenses.target ?? 0), 0),
+    expenseActual: monthRows.reduce((s, m) => s + m.expenses.actual, 0),
+  };
+
+  return {
+    year,
+    months: monthRows,
+    totals: {
+      ...totals,
+      salesVariance: totals.salesActual - totals.salesTarget,
+      expenseVariance: totals.expenseActual - totals.expenseTarget,
+    },
+  };
+}
+
+export interface FxRateMap {
+  [code: string]: number;
+}
+
+/** FX exposure and revaluation on open balances (booking rate vs current rate). */
+export async function getFxVarianceReport(start: Date, end: Date, currentRates: FxRateMap) {
+  const [sales, purchases] = await Promise.all([
+    prisma.sale.findMany({
+      where: {
+        date: { gte: start, lte: end },
+        OR: [{ currency: { not: "TRY" } }, { exchangeRate: { not: 1 } }],
+      },
+      include: { customer: { select: { name: true } }, product: { select: { name: true } } },
+    }),
+    prisma.purchase.findMany({
+      where: {
+        date: { gte: start, lte: end },
+        OR: [{ currency: { not: "TRY" } }, { exchangeRate: { not: 1 } }],
+      },
+      include: { supplier: { select: { name: true } }, product: { select: { name: true } } },
+    }),
+  ]);
+
+  type FxRow = {
+    id: number;
+    date: string;
+    kind: "SALE" | "PURCHASE";
+    partner: string;
+    product: string;
+    currency: string;
+    exchangeRate: number;
+    tryAmount: number;
+    foreignAmount: number;
+    unpaidTry: number;
+    unpaidForeign: number;
+    currentRate: number | null;
+    revaluationTry: number | null;
+  };
+
+  const rows: FxRow[] = [];
+
+  const pushRow = (
+    kind: "SALE" | "PURCHASE",
+    id: number,
+    date: Date,
+    partner: string,
+    product: string,
+    currency: string,
+    exchangeRate: number,
+    tryAmount: number,
+    unpaidTry: number,
+  ) => {
+    const rate = exchangeRate > 0 ? exchangeRate : 1;
+    const foreignAmount = tryAmount / rate;
+    const unpaidForeign = unpaidTry / rate;
+    const currentRate = currency === "TRY" ? 1 : currentRates[currency] ?? null;
+    let revaluationTry: number | null = null;
+    if (currentRate != null && unpaidForeign > 0 && currency !== "TRY") {
+      const atCurrent = unpaidForeign * currentRate;
+      revaluationTry = kind === "SALE" ? atCurrent - unpaidTry : unpaidTry - atCurrent;
+    }
+    rows.push({
+      id,
+      date: date.toISOString().slice(0, 10),
+      kind,
+      partner,
+      product,
+      currency,
+      exchangeRate: rate,
+      tryAmount,
+      foreignAmount,
+      unpaidTry,
+      unpaidForeign,
+      currentRate,
+      revaluationTry,
+    });
+  };
+
+  for (const s of sales) {
+    pushRow(
+      "SALE",
+      s.id,
+      new Date(s.date),
+      s.customer.name,
+      s.product.name,
+      s.currency,
+      s.exchangeRate,
+      s.vatIncludedAmount,
+      Math.max(0, s.vatIncludedAmount - s.paidAmount),
+    );
+  }
+  for (const p of purchases) {
+    pushRow(
+      "PURCHASE",
+      p.id,
+      new Date(p.date),
+      p.supplier.name,
+      p.product.name,
+      p.currency,
+      p.exchangeRate,
+      p.vatIncludedAmount,
+      Math.max(0, p.vatIncludedAmount - p.paidAmount),
+    );
+  }
+
+  rows.sort((a, b) => b.date.localeCompare(a.date));
+
+  const byCurrency = new Map<string, { exposureTry: number; revaluationTry: number; count: number }>();
+  for (const r of rows) {
+    if (r.currency === "TRY") continue;
+    const cur = byCurrency.get(r.currency) ?? { exposureTry: 0, revaluationTry: 0, count: 0 };
+    cur.exposureTry += r.unpaidTry;
+    cur.revaluationTry += r.revaluationTry ?? 0;
+    cur.count += 1;
+    byCurrency.set(r.currency, cur);
+  }
+
+  return {
+    rows,
+    summary: [...byCurrency.entries()].map(([currency, v]) => ({
+      currency,
+      ...v,
+      currentRate: currentRates[currency] ?? null,
+    })),
+    totals: {
+      openTry: rows.reduce((s, r) => s + r.unpaidTry, 0),
+      revaluationTry: rows.reduce((s, r) => s + (r.revaluationTry ?? 0), 0),
+    },
+  };
+}
+
+/** Product cost revision log for reporting. */
+export async function getProductCostHistoryReport(params: {
+  productId?: number;
+  start?: Date;
+  end?: Date;
+  limit?: number;
+}) {
+  const where: { productId?: number; recordedAt?: { gte?: Date; lte?: Date } } = {};
+  if (params.productId) where.productId = params.productId;
+  if (params.start || params.end) {
+    where.recordedAt = {};
+    if (params.start) where.recordedAt.gte = params.start;
+    if (params.end) where.recordedAt.lte = params.end;
+  }
+
+  return prisma.productCostHistory.findMany({
+    where,
+    orderBy: { recordedAt: "desc" },
+    take: params.limit ?? 500,
+    include: { product: { select: { name: true } } },
+  });
+}

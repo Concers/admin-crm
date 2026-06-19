@@ -14,7 +14,7 @@ const SINIF_CARDS = [
     iconWrap: "bg-emerald-100 text-emerald-700 ring-emerald-200",
     value: "text-emerald-800",
     badge: "bg-emerald-600 text-white",
-    barColor: "#059669",
+    barColor: "#585925",
   },
   {
     sinif: "B" as const,

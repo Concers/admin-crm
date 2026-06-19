@@ -17,6 +17,9 @@ import {
   History,
   BarChart3,
   LayoutGrid,
+  Target,
+  Banknote,
+  Globe2,
   type LucideIcon,
 } from "lucide-react";
 import type { UserRole } from "@/lib/roles";
@@ -36,6 +39,7 @@ const giris: NavItem[] = [
   { href: "/tedarikci-odeme", label: "Tedarikçi Ödeme", icon: CreditCard, roles: ["ADMIN"] },
   { href: "/musteri-tahsilat", label: "Müşteri Tahsilat", icon: Wallet, roles: ["ADMIN", "SALES_REP"] },
   { href: "/kasa-banka", label: "Kasa / Banka", icon: Wallet, roles: ["ADMIN"] },
+  { href: "/finans/cek-senet", label: "Çek / Senet", icon: Banknote, roles: ["ADMIN"] },
   { href: "/yeni-urun-takip", label: "Yeni Ürün Takip", icon: PackageSearch, roles: ["ADMIN", "WAREHOUSE_MANAGER"] },
 ];
 
@@ -82,6 +86,9 @@ const analizler: NavItem[] = [
   { href: "/raporlar/musteri-karlilik", label: "Müşteri Kârlılık", icon: BarChart3, roles: ["ADMIN"] },
   { href: "/raporlar/gider-merkezi", label: "Gider Merkezi", icon: BarChart3, roles: ["ADMIN"] },
   { href: "/raporlar/nakit-akis", label: "Nakit Akış", icon: BarChart3, roles: ["ADMIN"] },
+  { href: "/raporlar/butce", label: "Bütçe vs Gerçekleşen", icon: Target, roles: ["ADMIN"] },
+  { href: "/raporlar/kur-farki", label: "Kur Farkı", icon: Globe2, roles: ["ADMIN"] },
+  { href: "/raporlar/maliyet-gecmisi", label: "Maliyet Geçmişi", icon: History, roles: ["ADMIN"] },
   { href: "/raporlar/satis-temsilcisi", label: "Satış Temsilcisi", icon: BarChart3, roles: ["ADMIN"] },
 ];
 

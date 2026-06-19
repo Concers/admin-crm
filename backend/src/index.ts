@@ -20,6 +20,7 @@ import { inventoryRouter } from "./routes/inventory.js";
 import { documentsRouter } from "./routes/documents.js";
 import { exportRouter } from "./routes/export.js";
 import { reconciliationRouter } from "./routes/reconciliation.js";
+import { financeRouter } from "./routes/finance.js";
 
 dotenv.config();
 
@@ -47,6 +48,7 @@ app.use("/api", inventoryRouter);
 app.use("/api", documentsRouter);
 app.use("/api", exportRouter);
 app.use("/api", reconciliationRouter);
+app.use("/api", financeRouter);
 
 // Centralised error handler.
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {

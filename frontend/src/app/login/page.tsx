@@ -12,26 +12,27 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen">
-      <div className="hidden flex-1 flex-col justify-between bg-gradient-to-br from-[#c6ddf0] via-[#f0e8ed] to-[#c99da3] p-10 text-[#2a2b2a] lg:flex">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/60 backdrop-blur">
+      <div className="relative hidden flex-1 flex-col justify-between overflow-hidden bg-gradient-to-br from-[#261515] via-[#590219] to-[#BF8F36] p-10 text-white lg:flex">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_100%_0%,rgba(191,143,54,0.35),transparent_70%)]" />
+        <div className="relative flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur ring-1 ring-white/20">
             <LayoutDashboard className="h-5 w-5" />
           </div>
           <div>
             <p className="text-lg font-semibold">Kadim ERP</p>
-            <p className="text-sm text-[#5e4955]">Firma yönetim paneli</p>
+            <p className="text-sm text-white/70">Firma yönetim paneli</p>
           </div>
         </div>
-        <div className="max-w-md space-y-4">
+        <div className="relative max-w-md space-y-4">
           <h2 className="text-3xl font-semibold leading-tight">
             Stok, gider ve satışlarınızı tek yerden yönetin
           </h2>
-          <p className="leading-relaxed text-[#5e4955]">
-            Excel kayıtlarınızın dijital karşılığı. Gider girişi, alım-satış, raporlar ve
-            belgeler — hepsi güvenli ve düzenli.
+          <p className="leading-relaxed text-white/75">
+            Excel kayıtlarınızın dijital karşılığı. Gider girişi, alım-satış, raporlar ve belgeler — hepsi
+            güvenli ve düzenli.
           </p>
         </div>
-        <p className="text-xs text-[#5e4955]/70">© Kadim Naturel</p>
+        <p className="relative text-xs text-white/50">© Kadim Naturel</p>
       </div>
 
       <div className="flex flex-1 items-center justify-center bg-[var(--background)] p-6 sm:p-10">
@@ -41,16 +42,12 @@ export default function LoginPage() {
               <LayoutDashboard className="h-5 w-5" />
             </div>
             <h1 className="text-2xl font-semibold tracking-tight">Kadim ERP</h1>
-            <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-              Devam etmek için giriş yapın
-            </p>
+            <p className="mt-1 text-sm text-[var(--muted-foreground)]">Devam etmek için giriş yapın</p>
           </div>
 
-          <div className="hidden lg:block mb-8">
+          <div className="mb-8 hidden lg:block">
             <h1 className="text-2xl font-semibold tracking-tight">Hoş geldiniz</h1>
-            <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-              Hesabınıza giriş yapın
-            </p>
+            <p className="mt-1 text-sm text-[var(--muted-foreground)]">Hesabınıza giriş yapın</p>
           </div>
 
           <form action={formAction} className="space-y-5">
@@ -84,13 +81,11 @@ export default function LoginPage() {
                 />
               </div>
             </div>
-
             {state.error && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
                 {state.error}
               </div>
             )}
-
             <Button type="submit" disabled={pending} className="w-full" size="md">
               {pending ? "Giriş yapılıyor…" : "Giriş Yap"}
             </Button>

@@ -233,7 +233,7 @@ export function GiderMerkeziOzet({
             <p className="mb-4 text-xs text-[var(--muted-foreground)]">
               {donemLabel} tutarları — tam kategori adları solda
             </p>
-            <ProductBarChart data={kategoriChart} barColor="#7c3aed" maxItems={15} />
+            <ProductBarChart data={kategoriChart} barColor="#8C6C7E" maxItems={15} />
           </CardContent>
         </Card>
       )}

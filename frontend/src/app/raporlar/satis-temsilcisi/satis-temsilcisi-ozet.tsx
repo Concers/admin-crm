@@ -47,7 +47,7 @@ export function SatisTemsilcisiOzet({
         <Card className="border shadow-sm">
           <CardContent className="pt-5">
             <h2 className="mb-4 text-sm font-semibold">Temsilci bazında net kâr</h2>
-            <ProductBarChart data={chart} barColor="#6366f1" maxItems={15} />
+            <ProductBarChart data={chart} barColor="#022E40" maxItems={15} />
           </CardContent>
         </Card>
       )}

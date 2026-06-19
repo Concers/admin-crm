@@ -40,9 +40,11 @@ import type { ReceteAnaliz, RecipeAnalysis, ComponentUsage } from "./analiz-data
 
 // Marka paleti — globals.css toprak tonlarından (bordo, haki, kahve + türetilen
 // toprak tonları). Tüm grafik/aksan renkleri buradan gelir.
-const PALETTE = ["#732229", "#8b8c5e", "#401a11", "#b0793f", "#566023", "#a8453c"];
+const GREEN = "#585925";
+const GREEN_DARK = "#3f4218";
+const PALETTE = ["#590219", GREEN, "#261515", "#022E40", GREEN_DARK, "#8C6C7E"];
 // KPI/mini-stat aksanları — okunabilir (koyu) marka tonları.
-const ACCENTS = ["#732229", "#401a11", "#566023", "#8b8c5e"];
+const ACCENTS = ["#590219", "#261515", GREEN_DARK, GREEN];
 
 const tlFull = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 });
 const tlFine = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 2 });

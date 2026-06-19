@@ -171,7 +171,7 @@ export function TableToolbar({
     <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[0_4px_24px_-8px_rgba(42,43,42,0.12)] ring-1 ring-black/[0.03]">
       {/* Üst şerit */}
       <div className="relative border-b border-[var(--border)]/70 bg-gradient-to-r from-[var(--accent)]/80 via-white to-[var(--primary)]/[0.07] px-4 py-3 sm:px-5">
-        <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-[var(--primary)] to-[#c99da3]" />
+        <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-[var(--primary)] to-[#8C6C7E]" />
         <div className="flex flex-wrap items-center justify-between gap-3 pl-2">
           <div className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-[var(--border)]/60">

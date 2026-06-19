@@ -730,3 +730,128 @@ export const deleteAllocation = (id: number) => apiSend("DELETE", `/reconciliati
 
 export interface ReconSummaryRow { name: string; invoiced: number; allocated: number; open: number }
 export const getReconciliationSummary = () => apiGet<ReconSummaryRow[]>("/reconciliation/summary");
+
+// =============================================================================
+// Finans — bütçe, çek/senet, maliyet geçmişi, kur farkı
+// =============================================================================
+export type BudgetMetric = "SALES_REVENUE" | "EXPENSE_TOTAL" | "EXPENSE_CATEGORY";
+
+export interface BudgetTarget {
+  id: number;
+  year: number;
+  month: number;
+  metric: BudgetMetric;
+  category: string | null;
+  amount: number;
+  notes: string | null;
+}
+
+export interface BudgetVarianceMonth {
+  month: number;
+  sales: { target: number | null; actual: number; variance: number | null; variancePct: number | null };
+  expenses: { target: number | null; actual: number; variance: number | null; variancePct: number | null };
+  categories: { category: string; target: number | null; actual: number; variance: number | null; variancePct: number | null }[];
+}
+
+export interface BudgetVarianceReport {
+  year: number;
+  months: BudgetVarianceMonth[];
+  totals: {
+    salesTarget: number;
+    salesActual: number;
+    expenseTarget: number;
+    expenseActual: number;
+    salesVariance: number;
+    expenseVariance: number;
+  };
+}
+
+export const getBudgetTargets = (year: number) => apiGet<BudgetTarget[]>(`/budget-targets?year=${year}`);
+export const upsertBudgetTarget = (body: Json) => apiSend<BudgetTarget>("POST", "/budget-targets", body);
+export const deleteBudgetTarget = (id: number) => apiSend("DELETE", `/budget-targets/${id}`);
+export const getBudgetVariance = (year: number) => apiGet<BudgetVarianceReport>(`/reports/budget-variance?year=${year}`);
+
+export type InstrumentType = "CHEQUE" | "PROMISSORY_NOTE";
+export type InstrumentDirection = "RECEIVABLE" | "PAYABLE";
+export type InstrumentStatus = "PORTFOLIO" | "DEPOSITED" | "COLLECTED" | "PAID" | "BOUNCED" | "CANCELLED";
+
+export interface PaymentInstrument {
+  id: number;
+  type: InstrumentType;
+  direction: InstrumentDirection;
+  partnerId: number;
+  accountId: number | null;
+  number: string | null;
+  amount: number;
+  currency: string;
+  issueDate: string;
+  dueDate: string;
+  status: InstrumentStatus;
+  notes: string | null;
+  partner: { name: string; type: string };
+  account: { name: string } | null;
+}
+
+export const getPaymentInstruments = (status?: string) => {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : "";
+  return apiGet<PaymentInstrument[]>(`/payment-instruments${qs}`);
+};
+export const createPaymentInstrument = (body: Json) => apiSend<PaymentInstrument>("POST", "/payment-instruments", body);
+export const updatePaymentInstrument = (id: number, body: Json) =>
+  apiSend<PaymentInstrument>("PUT", `/payment-instruments/${id}`, body);
+export const deletePaymentInstrument = (id: number) => apiSend("DELETE", `/payment-instruments/${id}`);
+
+export interface ProductCostHistoryRow {
+  id: number;
+  productId: number;
+  recordedAt: string;
+  purchaseUnitCost: number;
+  productionUnitCost: number;
+  overheadUnitCost: number;
+  totalUnitCost: number;
+  reason: string;
+  sourceEntity: string | null;
+  sourceId: number | null;
+  notes: string | null;
+  product: { name: string };
+}
+
+export const getProductCostHistory = (params?: { productId?: number; start?: string; end?: string; limit?: number }) => {
+  const qs = new URLSearchParams();
+  if (params?.productId) qs.set("productId", String(params.productId));
+  if (params?.start) qs.set("start", params.start);
+  if (params?.end) qs.set("end", params.end);
+  if (params?.limit) qs.set("limit", String(params.limit));
+  const q = qs.toString();
+  return apiGet<ProductCostHistoryRow[]>(`/reports/cost-history${q ? `?${q}` : ""}`);
+};
+
+export interface FxVarianceRow {
+  id: number;
+  date: string;
+  kind: "SALE" | "PURCHASE";
+  partner: string;
+  product: string;
+  currency: string;
+  exchangeRate: number;
+  tryAmount: number;
+  foreignAmount: number;
+  unpaidTry: number;
+  unpaidForeign: number;
+  currentRate: number | null;
+  revaluationTry: number | null;
+}
+
+export interface FxVarianceReport {
+  rows: FxVarianceRow[];
+  summary: { currency: string; exposureTry: number; revaluationTry: number; count: number; currentRate: number | null }[];
+  totals: { openTry: number; revaluationTry: number };
+}
+
+export const getFxVarianceReport = (start?: string, end?: string) => {
+  const qs = new URLSearchParams();
+  if (start) qs.set("start", start);
+  if (end) qs.set("end", end);
+  const q = qs.toString();
+  return apiGet<FxVarianceReport>(`/reports/fx-variance${q ? `?${q}` : ""}`);
+};

@@ -167,7 +167,7 @@ export function StokRaporOzet({
             <ProductBarChart
               data={chartData}
               maxItems={8}
-              barColor="#86a59c"
+              barColor="#585925"
               valueFormat="qty"
             />
           </CardContent>

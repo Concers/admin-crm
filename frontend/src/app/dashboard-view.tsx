@@ -282,7 +282,7 @@ export function DashboardView({ stats }: { stats: DashboardStats }) {
             {stats.topProducts.length > 0 ? (
               <ProductBarChart
                 data={stats.topProducts.map((p) => ({ name: p.name, value: p.amount }))}
-                barColor="#86a59c"
+                barColor="#585925"
                 maxItems={6}
               />
             ) : (
@@ -306,7 +306,7 @@ export function DashboardView({ stats }: { stats: DashboardStats }) {
                   label: "Gider",
                   value: stats.totalExpense,
                   pct: stats.totalSale > 0 ? (stats.totalExpense / stats.totalSale) * 100 : 0,
-                  color: "bg-rose-400",
+                  color: "bg-rose-500",
                 },
               ]}
             />

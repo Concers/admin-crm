@@ -231,7 +231,7 @@ export function NakitAkisOzet({
             <CardContent className="pt-5">
               <h2 className="mb-1 text-sm font-semibold text-[var(--foreground)]">Aylık Net Akış</h2>
               <p className="mb-4 text-xs text-[var(--muted-foreground)]">Giriş − çıkış</p>
-              <TrendLineChart data={netChart} stroke="#996888" />
+              <TrendLineChart data={netChart} stroke="#590219" />
             </CardContent>
           </Card>
         )}
@@ -240,7 +240,7 @@ export function NakitAkisOzet({
             <CardContent className="pt-5">
               <h2 className="mb-1 text-sm font-semibold text-[var(--foreground)]">Kümülatif Nakit</h2>
               <p className="mb-4 text-xs text-[var(--muted-foreground)]">Ay ay biriken net pozisyon</p>
-              <TrendLineChart data={kumulatifChart} stroke="#86a59c" />
+              <TrendLineChart data={kumulatifChart} stroke="#585925" />
             </CardContent>
           </Card>
         )}

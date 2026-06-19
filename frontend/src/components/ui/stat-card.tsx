@@ -4,11 +4,11 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 
 const accentMap = {
-  blue: "bg-blue-500/15 text-blue-300 ring-blue-500/25",
-  emerald: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/25",
-  amber: "bg-amber-500/15 text-amber-300 ring-amber-500/25",
-  rose: "bg-rose-500/15 text-rose-300 ring-rose-500/25",
-  indigo: "bg-indigo-500/15 text-indigo-300 ring-indigo-500/25",
+  blue: "bg-blue-500/12 text-blue-700 ring-blue-500/20",
+  emerald: "bg-emerald-500/15 text-emerald-700 ring-emerald-500/25",
+  amber: "bg-amber-500/12 text-amber-800 ring-amber-500/20",
+  rose: "bg-rose-500/12 text-rose-800 ring-rose-500/20",
+  indigo: "bg-indigo-500/12 text-indigo-700 ring-indigo-500/20",
 } as const;
 
 /** Önceki döneme göre değişim göstergesi. */
@@ -45,7 +45,7 @@ export function StatCard({
               <span
                 className={cn(
                   "inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-medium tabular-nums",
-                  up ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-300"
+                  up ? "bg-emerald-50 text-emerald-700 ring-emerald-200/80" : "bg-rose-50 text-rose-700 ring-rose-200/80"
                 )}
               >
                 {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}

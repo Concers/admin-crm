@@ -20,7 +20,12 @@ import {
 } from "recharts";
 
 // Muted, theme-consistent fixed palette.
-const PALETTE = ["#732229", "#8b8c5e", "#401a11", "#b0793f", "#566023", "#a8453c"];
+// Marka tonları — globals.css ile uyumlu
+const GREEN = "#585925";
+const GREEN_LIGHT = "#7a7d52";
+const GREEN_DARK = "#3f4218";
+const MAUVE = "#8C6C7E";
+const PALETTE = ["#590219", GREEN, "#261515", "#022E40", GREEN_DARK, MAUVE];
 
 const tl = new Intl.NumberFormat("tr-TR", {
   style: "currency",
@@ -163,7 +168,7 @@ export function ProductCompareChart({ data }: { data: ProductCompareDatum[] }) {
         <Legend wrapperStyle={{ fontSize: 12 }} />
         <Bar name="Satış" dataKey="satis" fill={PALETTE[0]} radius={[4, 4, 0, 0]} maxBarSize={40} />
         <Bar name="Alım" dataKey="alim" fill={PALETTE[1]} radius={[4, 4, 0, 0]} maxBarSize={40} />
-        <Bar name="Kâr" dataKey="kar" fill="#566023" radius={[4, 4, 0, 0]} maxBarSize={40} />
+        <Bar name="Kâr" dataKey="kar" fill={GREEN_DARK} radius={[4, 4, 0, 0]} maxBarSize={40} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -247,8 +252,8 @@ export function CashFlowInOutBarChart({ data }: { data: InOutDatum[] }) {
         />
         <Tooltip contentStyle={tooltipStyle} formatter={tooltipFmt} cursor={{ fill: "var(--accent)" }} />
         <Legend wrapperStyle={{ fontSize: 12 }} />
-        <Bar dataKey="giris" name="Giriş" fill="#86a59c" radius={[4, 4, 0, 0]} maxBarSize={36} />
-        <Bar dataKey="cikis" name="Çıkış" fill="#c99da3" radius={[4, 4, 0, 0]} maxBarSize={36} />
+        <Bar dataKey="giris" name="Giriş" fill={GREEN_LIGHT} radius={[4, 4, 0, 0]} maxBarSize={36} />
+        <Bar dataKey="cikis" name="Çıkış" fill={MAUVE} radius={[4, 4, 0, 0]} maxBarSize={36} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -303,12 +308,12 @@ export function RevenueExpenseAreaChart({ data }: { data: ComboTrendDatum[] }) {
       <ComposedChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
         <defs>
           <linearGradient id="gelirGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#86a59c" stopOpacity={0.45} />
-            <stop offset="95%" stopColor="#86a59c" stopOpacity={0.05} />
+            <stop offset="5%" stopColor={GREEN_LIGHT} stopOpacity={0.45} />
+            <stop offset="95%" stopColor={GREEN_LIGHT} stopOpacity={0.05} />
           </linearGradient>
           <linearGradient id="giderGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#c99da3" stopOpacity={0.4} />
-            <stop offset="95%" stopColor="#c99da3" stopOpacity={0.05} />
+            <stop offset="5%" stopColor={MAUVE} stopOpacity={0.4} />
+            <stop offset="95%" stopColor={MAUVE} stopOpacity={0.05} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
@@ -326,7 +331,7 @@ export function RevenueExpenseAreaChart({ data }: { data: ComboTrendDatum[] }) {
           type="monotone"
           dataKey="gelir"
           name="Satış"
-          stroke="#86a59c"
+          stroke={GREEN_LIGHT}
           fill="url(#gelirGrad)"
           strokeWidth={2}
         />
@@ -334,7 +339,7 @@ export function RevenueExpenseAreaChart({ data }: { data: ComboTrendDatum[] }) {
           type="monotone"
           dataKey="gider"
           name="Gider"
-          stroke="#c99da3"
+          stroke={MAUVE}
           fill="url(#giderGrad)"
           strokeWidth={2}
         />
@@ -342,16 +347,16 @@ export function RevenueExpenseAreaChart({ data }: { data: ComboTrendDatum[] }) {
           type="monotone"
           dataKey="kar"
           name="Kâr"
-          stroke="#996888"
+          stroke={GREEN}
           strokeWidth={2.5}
-          dot={{ r: 3, fill: "#996888" }}
+          dot={{ r: 3, fill: GREEN }}
         />
       </ComposedChart>
     </ResponsiveContainer>
   );
 }
 
-const AGING_COLORS = ["#86a59c", "#c0a35e", "#c99da3", "#996888"];
+const AGING_COLORS = [GREEN_LIGHT, "#BF8F36", MAUVE, "#590219"];
 
 export interface AgingBucketDatum {
   name: string;

@@ -6,7 +6,7 @@ const tones: Record<string, string> = {
   indigo: "bg-indigo-50 text-indigo-700",
   green: "bg-green-50 text-green-700",
   amber: "bg-amber-50 text-amber-700",
-  red: "bg-red-50 text-red-700",
+  red: "bg-rose-50 text-rose-700",
   blue: "bg-blue-50 text-blue-700",
 };
 

@@ -14,7 +14,7 @@ const BUCKETS = [
     card: "border-emerald-100 bg-emerald-50/60",
     iconWrap: "bg-emerald-100 text-emerald-700 ring-emerald-200",
     value: "text-emerald-800",
-    chart: "#6ee7b7",
+    chart: "#7a7d52",
   },
   {
     key: "d31_60" as const,
@@ -24,7 +24,7 @@ const BUCKETS = [
     card: "border-blue-100 bg-blue-50/60",
     iconWrap: "bg-blue-100 text-blue-700 ring-blue-200",
     value: "text-blue-800",
-    chart: "#93c5fd",
+    chart: "#3383a3",
   },
   {
     key: "d61_90" as const,
@@ -34,7 +34,7 @@ const BUCKETS = [
     card: "border-amber-100 bg-amber-50/60",
     iconWrap: "bg-amber-100 text-amber-800 ring-amber-200",
     value: "text-amber-900",
-    chart: "#fcd34d",
+    chart: "#BF8F36",
   },
   {
     key: "d90plus" as const,
@@ -44,7 +44,7 @@ const BUCKETS = [
     card: "border-rose-100 bg-rose-50/70",
     iconWrap: "bg-rose-100 text-rose-700 ring-rose-200",
     value: "text-rose-800",
-    chart: "#fda4af",
+    chart: "#8B3A2A",
   },
 ];
 

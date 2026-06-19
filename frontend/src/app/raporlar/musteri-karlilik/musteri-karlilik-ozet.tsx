@@ -240,7 +240,7 @@ export function MusteriKarlilikOzet({
             <p className="mb-4 text-xs text-[var(--muted-foreground)]">
               Net kâra göre sıralı — tam müşteri adları solda
             </p>
-            <ProductBarChart data={karChart} barColor="#059669" maxItems={15} />
+            <ProductBarChart data={karChart} barColor="#585925" maxItems={15} />
           </CardContent>
         </Card>
       )}
@@ -252,7 +252,7 @@ export function MusteriKarlilikOzet({
             <p className="mb-4 text-xs text-[var(--muted-foreground)]">
               Maliyeti aşan satışlar — zarar tutarına göre
             </p>
-            <ProductBarChart data={zararChart} barColor="#e11d48" maxItems={10} />
+            <ProductBarChart data={zararChart} barColor="#8B3A2A" maxItems={10} />
           </CardContent>
         </Card>
       )}

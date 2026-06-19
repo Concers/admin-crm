@@ -87,6 +87,7 @@ model Partner {
   expensesAsProvider  Expense[]
   cashFlows           CashFlow[]
   contacts            Contact[]
+  paymentInstruments  PaymentInstrument[]
 
   @@index([type])
 }
@@ -124,6 +125,7 @@ model Product {
   expenses       Expense[]
   developments   ProductDevelopment[]
   stockMovements StockMovement[]
+  costHistory    ProductCostHistory[]
 
   @@index([category])
   @@index([barcode])
@@ -292,6 +294,7 @@ model Account {
   updatedAt      DateTime    @updatedAt
 
   cashFlows CashFlow[]
+  paymentInstruments PaymentInstrument[]
 }
 
 /// Depo / lokasyon.
@@ -705,4 +708,93 @@ model PeriodLock {
 
   @@unique([year, month])
   @@index([year])
+}
+
+// -----------------------------------------------------------------------------
+// Finans — bütçe, çek/senet, maliyet geçmişi
+// -----------------------------------------------------------------------------
+
+enum BudgetMetric {
+  SALES_REVENUE // aylık satış hedefi (KDV hariç)
+  EXPENSE_TOTAL // aylık toplam gider hedefi
+  EXPENSE_CATEGORY // gider türü bazlı hedef
+}
+
+/// Aylık bütçe hedefi — gerçekleşen ile karşılaştırılır.
+model BudgetTarget {
+  id        Int          @id @default(autoincrement())
+  year      Int
+  month     Int // 1-12
+  metric    BudgetMetric
+  category  String? // EXPENSE_CATEGORY için gider türü adı
+  amount    Float
+  notes     String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([year, month, metric, category])
+  @@index([year, month])
+}
+
+enum InstrumentType {
+  CHEQUE // çek
+  PROMISSORY_NOTE // senet
+}
+
+enum InstrumentDirection {
+  RECEIVABLE // alınan çek/senet (müşteri)
+  PAYABLE // verilen çek/senet (tedarikçi)
+}
+
+enum InstrumentStatus {
+  PORTFOLIO // portföyde
+  DEPOSITED // bankaya verildi / ciro
+  COLLECTED // tahsil edildi
+  PAID // ödendi
+  BOUNCED // karşılıksız
+  CANCELLED
+}
+
+/// Çek ve senet portföyü.
+model PaymentInstrument {
+  id        Int                 @id @default(autoincrement())
+  type      InstrumentType
+  direction InstrumentDirection
+  partnerId Int
+  accountId Int?
+  number    String?
+  amount    Float
+  currency  String              @default("TRY")
+  issueDate DateTime
+  dueDate   DateTime
+  status    InstrumentStatus    @default(PORTFOLIO)
+  notes     String?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  partner Partner  @relation(fields: [partnerId], references: [id])
+  account Account? @relation(fields: [accountId], references: [id])
+
+  @@index([dueDate])
+  @@index([status])
+  @@index([partnerId])
+}
+
+/// Ürün birim maliyet revizyon geçmişi (audit benzeri).
+model ProductCostHistory {
+  id                 Int      @id @default(autoincrement())
+  productId          Int
+  recordedAt         DateTime @default(now())
+  purchaseUnitCost   Float
+  productionUnitCost Float
+  overheadUnitCost   Float
+  totalUnitCost      Float
+  reason             String // NEW_PURCHASE | PRODUCT_EXPENSE | GENERAL_EXPENSE | RECOMPUTE
+  sourceEntity       String?
+  sourceId           Int?
+  notes              String?
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, recordedAt])
 }

@@ -23,6 +23,7 @@ import { computeSaleCosts, getProductStock } from "../lib/costing.js";
 import { parseInvoiceNoFromNotes } from "../lib/expenseInvoice.js";
 import { parseListQuery, dateRangeWhere, paginate } from "../lib/query.js";
 import { assertPeriodOpen } from "../lib/periodLock.js";
+import { recordProductCostSnapshot } from "../lib/costHistory.js";
 
 /** Resolve a due date from an explicit dueDate or a payment-term in days. */
 function resolveDueDate(body: Record<string, unknown>, date: Date): Date | null {
@@ -279,6 +280,10 @@ transactionsRouter.post(
     if (!data) return res.status(400).json({ error: "date, productName and quantity are required" });
     if (!(await assertPeriodOpen(res, data.date))) return;
     const purchase = await prisma.purchase.create({ data });
+    await recordProductCostSnapshot(prisma, purchase.productId, "NEW_PURCHASE", {
+      sourceEntity: "Purchase",
+      sourceId: purchase.id,
+    });
     await recordAudit({ userId: req.auth?.userId, action: "CREATE", entityName: "Purchase", entityId: purchase.id });
     res.status(201).json(purchase);
   }),
@@ -296,6 +301,17 @@ transactionsRouter.put(
     if (!data) return res.status(400).json({ error: "date, productName and quantity are required" });
     if (!(await assertPeriodOpen(res, existingPurchase.date, data.date))) return;
     const purchase = await prisma.purchase.update({ where: { id }, data });
+    await recordProductCostSnapshot(prisma, purchase.productId, "PURCHASE_UPDATE", {
+      sourceEntity: "Purchase",
+      sourceId: id,
+    });
+    if (existingPurchase.productId !== purchase.productId) {
+      await recordProductCostSnapshot(prisma, existingPurchase.productId, "PURCHASE_UPDATE", {
+        sourceEntity: "Purchase",
+        sourceId: id,
+        notes: "Ürün değişti — eski ürün maliyeti",
+      });
+    }
     await recordAudit({ userId: req.auth?.userId, action: "UPDATE", entityName: "Purchase", entityId: id });
     res.json(purchase);
   }),
@@ -381,6 +397,12 @@ transactionsRouter.post(
     if (!data) return res.status(400).json({ error: "date is required" });
     if (!(await assertPeriodOpen(res, data.date))) return;
     const expense = await prisma.expense.create({ data });
+    if (expense.scope === "PRODUCT" && expense.productId) {
+      await recordProductCostSnapshot(prisma, expense.productId, "PRODUCT_EXPENSE", {
+        sourceEntity: "Expense",
+        sourceId: expense.id,
+      });
+    }
     await recordAudit({ userId: req.auth?.userId, action: "CREATE", entityName: "Expense", entityId: expense.id });
     res.status(201).json(expense);
   }),
@@ -398,6 +420,12 @@ transactionsRouter.put(
     if (!data) return res.status(400).json({ error: "date is required" });
     if (!(await assertPeriodOpen(res, existingExpense.date, data.date))) return;
     const expense = await prisma.expense.update({ where: { id }, data });
+    if (expense.scope === "PRODUCT" && expense.productId) {
+      await recordProductCostSnapshot(prisma, expense.productId, "PRODUCT_EXPENSE", {
+        sourceEntity: "Expense",
+        sourceId: id,
+      });
+    }
     await recordAudit({ userId: req.auth?.userId, action: "UPDATE", entityName: "Expense", entityId: id });
     res.json(expense);
   }),

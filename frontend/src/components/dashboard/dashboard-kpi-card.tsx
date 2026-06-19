@@ -7,33 +7,33 @@ import { SparklineChart } from "@/components/charts";
 const accents = {
   emerald: {
     icon: "bg-emerald-500/12 text-emerald-700 ring-emerald-500/20",
-    stripe: "from-emerald-500/80 to-emerald-400/40",
-    spark: "#059669",
+    stripe: "from-emerald-600/90 to-emerald-400/50",
+    spark: "#585925",
   },
   amber: {
-    icon: "bg-amber-500/12 text-amber-700 ring-amber-500/20",
-    stripe: "from-amber-500/80 to-amber-400/40",
-    spark: "#d97706",
+    icon: "bg-amber-500/12 text-amber-800 ring-amber-500/20",
+    stripe: "from-amber-500/90 to-amber-400/50",
+    spark: "#BF8F36",
   },
   rose: {
     icon: "bg-rose-500/12 text-rose-700 ring-rose-500/20",
-    stripe: "from-rose-500/80 to-rose-400/40",
-    spark: "#e11d48",
+    stripe: "from-rose-600/85 to-rose-500/45",
+    spark: "#8B3A2A",
   },
   indigo: {
     icon: "bg-violet-500/12 text-violet-700 ring-violet-500/20",
-    stripe: "from-violet-500/80 to-violet-400/40",
-    spark: "#7c3aed",
+    stripe: "from-violet-600/80 to-violet-400/40",
+    spark: "#8C6C7E",
   },
   blue: {
-    icon: "bg-sky-500/12 text-sky-700 ring-sky-500/20",
-    stripe: "from-sky-500/80 to-sky-400/40",
-    spark: "#0284c7",
+    icon: "bg-blue-500/12 text-blue-700 ring-blue-500/20",
+    stripe: "from-blue-600/90 to-blue-400/50",
+    spark: "#022E40",
   },
   plum: {
     icon: "bg-[var(--primary)]/12 text-[var(--primary)] ring-[var(--primary)]/25",
-    stripe: "from-[var(--primary)] to-[#c99da3]",
-    spark: "#996888",
+    stripe: "from-[var(--primary)] to-[#8C6C7E]",
+    spark: "#590219",
   },
 } as const;
 
