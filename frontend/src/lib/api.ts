@@ -253,7 +253,27 @@ export const createCashFlow = (body: Json) => apiSend<CashFlow>("POST", "/cashfl
 export const deleteCashFlow = (id: number) => apiSend("DELETE", `/cashflows/${id}`);
 
 // --- Reports -----------------------------------------------------------------
+export interface DashboardKpi {
+  value: number;
+  previous: number;
+  changePct: number | null;
+}
+
+export interface DashboardMonthlyTrend {
+  key: string;
+  label: string;
+  sales: number;
+  purchases: number;
+  expenses: number;
+  profit: number;
+  collections: number;
+  payments: number;
+  netCash: number;
+}
+
 export interface DashboardStats {
+  months: number;
+  generatedAt: string;
   totalExpense: number;
   totalPurchase: number;
   totalSale: number;
@@ -261,8 +281,28 @@ export interface DashboardStats {
   productCount: number;
   recentSales: Sale[];
   recentExpenses: Expense[];
+  kpis: {
+    sales: DashboardKpi;
+    purchases: DashboardKpi;
+    expenses: DashboardKpi;
+    profit: DashboardKpi;
+    receivable: number;
+    payable: number;
+    lowStockCount: number;
+  };
+  monthlyTrend: DashboardMonthlyTrend[];
+  topProducts: { name: string; amount: number }[];
+  expenseBreakdown: { name: string; amount: number }[];
+  agingBuckets: { d0_30: number; d31_60: number; d61_90: number; d90plus: number; total: number };
+  topReceivables: { name: string; amount: number }[];
+  topPayables: { name: string; amount: number }[];
+  lowStock: { product: string; stock: number; minStock: number; unit: string }[];
 }
-export const getDashboard = () => apiGet<DashboardStats>("/dashboard");
+
+export type DashboardHorizon = 3 | 6 | 9 | 12;
+
+export const getDashboard = (months: DashboardHorizon = 6) =>
+  apiGet<DashboardStats>(`/dashboard?months=${months}`);
 
 export interface StockRow { product: string; shelf: string | null; unit: string; purchased: number; sold: number; stock: number }
 export const getStockReport = () => apiGet<StockRow[]>("/reports/stock");

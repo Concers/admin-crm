@@ -207,3 +207,47 @@ body {
     background: white !important;
   }
 }
+
+/* Dashboard — Power BI tarzı tuval */
+.dashboard-canvas {
+  position: relative;
+  isolation: isolate;
+}
+
+.dashboard-canvas::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--primary) 8%, transparent) 1px, transparent 0);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(to bottom, black 0%, transparent 85%);
+  pointer-events: none;
+}
+
+.dashboard-tile {
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.dashboard-tile:hover {
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.05),
+    0 10px 24px -4px color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.dashboard-hero {
+  background: linear-gradient(
+    135deg,
+    #2a2b2a 0%,
+    #3d3540 42%,
+    #5e4955 100%
+  );
+}
+
+.dashboard-hero-glow {
+  background: radial-gradient(
+    ellipse 80% 60% at 100% 0%,
+    color-mix(in srgb, var(--primary) 45%, transparent),
+    transparent 70%
+  );
+}

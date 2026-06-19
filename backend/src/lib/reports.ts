@@ -10,34 +10,212 @@ import { getStockBreakdownMap } from "./costing.js";
 import { sortExpensesByExcelRow } from "./calculations.js";
 
 /** Dashboard headline figures + recent activity. */
-export async function getDashboardStats() {
-  const [expense, purchase, sale, partnerCount, productCount, recentSales, recentExpenses] =
-    await Promise.all([
-      prisma.expense.aggregate({ _sum: { totalAmount: true } }),
-      prisma.purchase.aggregate({ _sum: { vatIncludedAmount: true } }),
-      prisma.sale.aggregate({ _sum: { vatIncludedAmount: true } }),
-      prisma.partner.count(),
-      prisma.product.count(),
-      prisma.sale.findMany({
-        orderBy: { date: "desc" },
-        take: 5,
-        include: { product: true, customer: true },
-      }),
-      prisma.expense.findMany({
-        orderBy: { date: "desc" },
-        take: 5,
-        include: { product: true, partner: true },
-      }),
-    ]);
+const TR_MONTHS = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"] as const;
 
-  return {
-    totalExpense: expense._sum.totalAmount ?? 0,
-    totalPurchase: purchase._sum.vatIncludedAmount ?? 0,
-    totalSale: sale._sum.vatIncludedAmount ?? 0,
+function monthKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthLabelShort(d: Date) {
+  return `${TR_MONTHS[d.getMonth()]} '${String(d.getFullYear()).slice(2)}`;
+}
+
+function pctChange(current: number, previous: number): number | null {
+  if (previous <= 0) return current > 0 ? 100 : null;
+  return ((current - previous) / previous) * 100;
+}
+
+function buildMonthBuckets(count: number, asOf = new Date()) {
+  const buckets: { key: string; label: string; start: Date; end: Date }[] = [];
+  for (let i = count - 1; i >= 0; i--) {
+    const start = new Date(asOf.getFullYear(), asOf.getMonth() - i, 1);
+    const end = new Date(asOf.getFullYear(), asOf.getMonth() - i + 1, 0, 23, 59, 59, 999);
+    buckets.push({ key: monthKey(start), label: monthLabelShort(start), start, end });
+  }
+  return buckets;
+}
+
+export interface DashboardKpi {
+  value: number;
+  previous: number;
+  changePct: number | null;
+}
+
+export async function getDashboardStats(months = 6) {
+  const horizon = ([3, 6, 9, 12] as const).includes(months as 3 | 6 | 9 | 12) ? months : 6;
+  const now = new Date();
+  const buckets = buildMonthBuckets(horizon, now);
+  const periodStart = buckets[0]!.start;
+
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+
+  const [
+    expenseAgg,
+    purchaseAgg,
+    saleAgg,
     partnerCount,
     productCount,
     recentSales,
     recentExpenses,
+    sales,
+    purchases,
+    expenses,
+    cashflows,
+    receivableList,
+    debtList,
+    agingRows,
+    lowStock,
+  ] = await Promise.all([
+    prisma.expense.aggregate({ _sum: { totalAmount: true } }),
+    prisma.purchase.aggregate({ _sum: { vatIncludedAmount: true } }),
+    prisma.sale.aggregate({ _sum: { vatIncludedAmount: true } }),
+    prisma.partner.count(),
+    prisma.product.count(),
+    prisma.sale.findMany({
+      orderBy: { date: "desc" },
+      take: 6,
+      include: { product: true, customer: true },
+    }),
+    prisma.expense.findMany({
+      orderBy: { date: "desc" },
+      take: 6,
+      include: { product: true, partner: true },
+    }),
+    prisma.sale.findMany({
+      where: { date: { gte: periodStart } },
+      select: { date: true, vatIncludedAmount: true, product: { select: { name: true } } },
+    }),
+    prisma.purchase.findMany({
+      where: { date: { gte: periodStart } },
+      select: { date: true, vatIncludedAmount: true },
+    }),
+    prisma.expense.findMany({
+      where: { date: { gte: periodStart } },
+      select: { date: true, totalAmount: true, category: true },
+    }),
+    prisma.cashFlow.findMany({
+      where: { date: { gte: periodStart } },
+      select: { date: true, type: true, amount: true },
+    }),
+    getCustomerReceivableList(),
+    getSupplierDebtList(),
+    getReceivableAging(now),
+    getLowStockReport(),
+  ]);
+
+  const sumInRange = <T,>(
+    rows: T[],
+    getDate: (r: T) => Date,
+    getAmount: (r: T) => number,
+    start: Date,
+    end: Date,
+  ) =>
+    rows.reduce((sum, r) => {
+      const t = getDate(r).getTime();
+      if (t >= start.getTime() && t <= end.getTime()) return sum + getAmount(r);
+      return sum;
+    }, 0);
+
+  const salesThis = sumInRange(sales, (s) => new Date(s.date), (s) => s.vatIncludedAmount, thisMonthStart, thisMonthEnd);
+  const salesPrev = sumInRange(sales, (s) => new Date(s.date), (s) => s.vatIncludedAmount, prevMonthStart, prevMonthEnd);
+  const purchasesThis = sumInRange(purchases, (p) => new Date(p.date), (p) => p.vatIncludedAmount, thisMonthStart, thisMonthEnd);
+  const purchasesPrev = sumInRange(purchases, (p) => new Date(p.date), (p) => p.vatIncludedAmount, prevMonthStart, prevMonthEnd);
+  const expensesThis = sumInRange(expenses, (e) => new Date(e.date), (e) => e.totalAmount, thisMonthStart, thisMonthEnd);
+  const expensesPrev = sumInRange(expenses, (e) => new Date(e.date), (e) => e.totalAmount, prevMonthStart, prevMonthEnd);
+  const profitThis = salesThis - expensesThis;
+  const profitPrev = salesPrev - expensesPrev;
+
+  const monthlyTrend = buckets.map((b) => {
+    const monthSales = sumInRange(sales, (s) => new Date(s.date), (s) => s.vatIncludedAmount, b.start, b.end);
+    const monthPurchases = sumInRange(purchases, (p) => new Date(p.date), (p) => p.vatIncludedAmount, b.start, b.end);
+    const monthExpenses = sumInRange(expenses, (e) => new Date(e.date), (e) => e.totalAmount, b.start, b.end);
+    const collections = cashflows
+      .filter((c) => c.type === "COLLECTION")
+      .reduce((sum, c) => sum + (new Date(c.date) >= b.start && new Date(c.date) <= b.end ? c.amount : 0), 0);
+    const payments = cashflows
+      .filter((c) => c.type === "PAYMENT")
+      .reduce((sum, c) => sum + (new Date(c.date) >= b.start && new Date(c.date) <= b.end ? c.amount : 0), 0);
+    return {
+      key: b.key,
+      label: b.label,
+      sales: monthSales,
+      purchases: monthPurchases,
+      expenses: monthExpenses,
+      profit: monthSales - monthExpenses,
+      collections,
+      payments,
+      netCash: collections - payments,
+    };
+  });
+
+  const productMap = new Map<string, number>();
+  for (const s of sales) {
+    const name = s.product.name;
+    productMap.set(name, (productMap.get(name) ?? 0) + s.vatIncludedAmount);
+  }
+  const topProducts = [...productMap.entries()]
+    .map(([name, amount]) => ({ name, amount }))
+    .sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name, "tr"))
+    .slice(0, 8);
+
+  const categoryMap = new Map<string, number>();
+  for (const e of expenses) {
+    categoryMap.set(e.category, (categoryMap.get(e.category) ?? 0) + e.totalAmount);
+  }
+  const expenseBreakdown = [...categoryMap.entries()]
+    .map(([name, amount]) => ({ name, amount }))
+    .sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name, "tr"))
+    .slice(0, 8);
+
+  const agingBuckets = agingRows.reduce(
+    (acc, r) => ({
+      d0_30: acc.d0_30 + r.d0_30,
+      d31_60: acc.d31_60 + r.d31_60,
+      d61_90: acc.d61_90 + r.d61_90,
+      d90plus: acc.d90plus + r.d90plus,
+      total: acc.total + r.total,
+    }),
+    { d0_30: 0, d31_60: 0, d61_90: 0, d90plus: 0, total: 0 },
+  );
+
+  const totalReceivable = receivableList.reduce((s, r) => s + r.net, 0);
+  const totalPayable = debtList.reduce((s, r) => s + r.debt, 0);
+
+  const kpi = (value: number, previous: number): DashboardKpi => ({
+    value,
+    previous,
+    changePct: pctChange(value, previous),
+  });
+
+  return {
+    months: horizon,
+    generatedAt: now.toISOString(),
+    totalExpense: expenseAgg._sum.totalAmount ?? 0,
+    totalPurchase: purchaseAgg._sum.vatIncludedAmount ?? 0,
+    totalSale: saleAgg._sum.vatIncludedAmount ?? 0,
+    partnerCount,
+    productCount,
+    recentSales,
+    recentExpenses,
+    kpis: {
+      sales: kpi(salesThis, salesPrev),
+      purchases: kpi(purchasesThis, purchasesPrev),
+      expenses: kpi(expensesThis, expensesPrev),
+      profit: kpi(profitThis, profitPrev),
+      receivable: totalReceivable,
+      payable: totalPayable,
+      lowStockCount: lowStock.length,
+    },
+    monthlyTrend,
+    topProducts,
+    expenseBreakdown,
+    agingBuckets,
+    topReceivables: receivableList.slice(0, 5).map((r) => ({ name: r.name, amount: r.net })),
+    topPayables: debtList.slice(0, 5).map((r) => ({ name: r.name, amount: r.debt })),
+    lowStock: lowStock.slice(0, 6),
   };
 }
 

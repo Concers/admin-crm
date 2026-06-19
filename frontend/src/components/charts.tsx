@@ -9,6 +9,9 @@ import {
   Cell,
   LineChart,
   Line,
+  AreaChart,
+  Area,
+  ComposedChart,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -242,6 +245,148 @@ export function TrendLineChart({
           activeDot={{ r: 5 }}
         />
       </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+export interface ComboTrendDatum {
+  label: string;
+  gelir: number;
+  gider: number;
+  kar: number;
+}
+
+/** Power BI tarzı gelir / gider alan grafiği + kâr çizgisi. */
+export function RevenueExpenseAreaChart({ data }: { data: ComboTrendDatum[] }) {
+  if (data.length === 0) return null;
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <ComposedChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+        <defs>
+          <linearGradient id="gelirGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#86a59c" stopOpacity={0.45} />
+            <stop offset="95%" stopColor="#86a59c" stopOpacity={0.05} />
+          </linearGradient>
+          <linearGradient id="giderGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#c99da3" stopOpacity={0.4} />
+            <stop offset="95%" stopColor="#c99da3" stopOpacity={0.05} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+        <XAxis dataKey="label" tick={axisStyle} tickLine={false} axisLine={{ stroke: "var(--border)" }} />
+        <YAxis
+          tick={axisStyle}
+          tickLine={false}
+          axisLine={{ stroke: "var(--border)" }}
+          tickFormatter={(v: number) => tl.format(v)}
+          width={72}
+        />
+        <Tooltip contentStyle={tooltipStyle} formatter={tooltipFmt} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Area
+          type="monotone"
+          dataKey="gelir"
+          name="Satış"
+          stroke="#86a59c"
+          fill="url(#gelirGrad)"
+          strokeWidth={2}
+        />
+        <Area
+          type="monotone"
+          dataKey="gider"
+          name="Gider"
+          stroke="#c99da3"
+          fill="url(#giderGrad)"
+          strokeWidth={2}
+        />
+        <Line
+          type="monotone"
+          dataKey="kar"
+          name="Kâr"
+          stroke="#996888"
+          strokeWidth={2.5}
+          dot={{ r: 3, fill: "#996888" }}
+        />
+      </ComposedChart>
+    </ResponsiveContainer>
+  );
+}
+
+const AGING_COLORS = ["#86a59c", "#c0a35e", "#c99da3", "#996888"];
+
+export interface AgingBucketDatum {
+  name: string;
+  value: number;
+}
+
+/** Alacak yaşlandırma — yatay tek satır stacked bar. */
+export function AgingStackBar({ data }: { data: AgingBucketDatum[] }) {
+  const total = data.reduce((s, d) => s + d.value, 0);
+  if (total <= 0) {
+    return (
+      <p className="py-8 text-center text-sm text-[var(--muted-foreground)]">Açık alacak yok.</p>
+    );
+  }
+  const segments = data.filter((d) => d.value > 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex h-9 w-full overflow-hidden rounded-full ring-1 ring-[var(--border)]">
+        {segments.map((d, i) => (
+          <div
+            key={d.name}
+            className="h-full transition-all"
+            style={{
+              width: `${(d.value / total) * 100}%`,
+              backgroundColor: AGING_COLORS[i % AGING_COLORS.length],
+            }}
+            title={`${d.name}: ${tl.format(d.value)}`}
+          />
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {data.map((d, i) => (
+          <div key={d.name} className="rounded-lg border border-[var(--border)] bg-[var(--muted)]/20 px-3 py-2">
+            <div className="flex items-center gap-1.5">
+              <span
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: AGING_COLORS[i % AGING_COLORS.length] }}
+              />
+              <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
+                {d.name}
+              </span>
+            </div>
+            <p className="mt-1 text-sm font-semibold tabular-nums">{tl.format(d.value)}</p>
+            <p className="text-[10px] text-[var(--muted-foreground)]">
+              {total > 0 ? ((d.value / total) * 100).toFixed(0) : 0}%
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Mini sparkline — KPI kartları için. */
+export function SparklineChart({
+  data,
+  stroke = PALETTE[0],
+}: {
+  data: TrendDatum[];
+  stroke?: string;
+}) {
+  if (data.length < 2) return null;
+  return (
+    <ResponsiveContainer width="100%" height={44}>
+      <AreaChart data={data} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+        <defs>
+          <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={stroke} stopOpacity={0.35} />
+            <stop offset="95%" stopColor={stroke} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <Area type="monotone" dataKey="value" stroke={stroke} fill="url(#sparkGrad)" strokeWidth={1.5} dot={false} />
+      </AreaChart>
     </ResponsiveContainer>
   );
 }

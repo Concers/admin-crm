@@ -37,7 +37,11 @@ export const reportsRouter = Router();
 // Dashboard headline is available to any authenticated role.
 reportsRouter.get(
   "/dashboard",
-  asyncHandler(async (_req, res) => res.json(await getDashboardStats())),
+  asyncHandler(async (req, res) => {
+    const raw = req.query.months ? Number(req.query.months) : 6;
+    const months = [3, 6, 9, 12].includes(raw) ? raw : 6;
+    res.json(await getDashboardStats(months));
+  }),
 );
 
 // Stock is also visible to the warehouse manager (spec D); it must be declared
