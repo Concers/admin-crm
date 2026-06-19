@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { ClipboardList, Layers, Package, Pencil, Trash2 } from "lucide-react";
 import { DataTable } from "@/components/data-table";
+import { RECETE_PRIMARY_FILTER_KEYS } from "@/lib/table-primary-filters";
 import { Button } from "@/components/ui/button";
 import { RecordWorkspaceToolbar } from "@/components/record-workspace-toolbar";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -135,6 +136,7 @@ function ReceteList({
       defaultSort={{ key: "ad", asc: true }}
       searchKeys={["ad", "mamul", "durum"]}
       searchPlaceholder="Reçete veya mamul ara…"
+      filterKeys={[...RECETE_PRIMARY_FILTER_KEYS]}
       columns={columns}
       emptyText="Henüz reçete kaydı yok"
       emptyHint="Yukarıdaki butonla ilk reçetenizi ekleyebilirsiniz."

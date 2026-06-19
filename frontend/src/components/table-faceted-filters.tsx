@@ -185,7 +185,7 @@ function FilterChip({
     <div
       className={cn(
         "inline-flex items-center rounded-lg border text-sm shadow-sm",
-        active ? "border-[var(--primary)]/40 bg-[var(--primary)]/5" : "border-[var(--border)] bg-white",
+        active ? "border-[var(--primary)]/40 bg-[var(--primary)]/5" : "border-[var(--border)] bg-[var(--card)]",
       )}
     >
       <Popover open={open} onOpenChange={onOpenChange}>

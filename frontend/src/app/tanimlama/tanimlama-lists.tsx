@@ -1,8 +1,12 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Users } from "lucide-react";
 import { DataTable } from "@/components/data-table";
+import {
+  CARI_TANIM_PRIMARY_FILTER_KEYS,
+  URUN_TANIM_PRIMARY_FILTER_KEYS,
+} from "@/lib/table-primary-filters";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +14,8 @@ import { Select } from "@/components/ui/select";
 import { FormModal, FormSection } from "@/components/form-modal";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { cn } from "@/lib/utils";
+import { createKisi, deleteKisi, loadPartnerContacts, updateKisi } from "./actions";
+import { KisiModal } from "./kisi-modal";
 import { PARTNER_TYPE_OPTIONS, partnerTypeLabel } from "@/lib/partner-types";
 import type { PartnerType } from "@/lib/api";
 
@@ -72,7 +78,7 @@ function RowActions({
   );
 }
 
-type TedarikciRow = { id: number; tip: PartnerType; ad: string };
+type TedarikciRow = { id: number; tip: PartnerType; ad: string; priceTier: string };
 
 export function TedarikciList({
   rows,
@@ -84,6 +90,7 @@ export function TedarikciList({
   onDelete: (id: number) => Promise<{ error?: string } | void>;
 }) {
   const [editing, setEditing] = useState<TedarikciRow | null>(null);
+  const [kisiPartner, setKisiPartner] = useState<TedarikciRow | null>(null);
   const { run, pending } = useActionToast();
 
   const tableRows = useMemo(
@@ -116,6 +123,7 @@ export function TedarikciList({
         defaultSort={{ key: "ad", asc: true }}
         searchKeys={["ad", "tipLabel"]}
         searchPlaceholder="Cari adı veya tip ara…"
+        filterKeys={[...CARI_TANIM_PRIMARY_FILTER_KEYS]}
         emptyText="Henüz cari eklenmemiş"
         emptyHint="Yukarıdaki butonla yeni cari ekleyebilirsiniz."
         columns={[
@@ -127,20 +135,36 @@ export function TedarikciList({
           },
           { key: "ad", label: "Ad" },
           {
+            key: "priceTier",
+            label: "Segment",
+            render: (r) => r.priceTier || <span className="text-[var(--muted-foreground)]">—</span>,
+          },
+          {
             key: "id",
             label: "",
             sortable: false,
             filterable: false,
             render: (row) => (
-              <RowActions
-                disabled={pending}
-                onEdit={() => setEditing(row)}
-                onDelete={() => {
-                  if (confirm(`"${row.ad}" silinsin mi?`)) {
-                    run(() => onDelete(row.id), { success: "Kayıt silindi." });
-                  }
-                }}
-              />
+              <div className="flex justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  title="Kişiler"
+                  onClick={() => setKisiPartner(row)}
+                >
+                  <Users className="h-4 w-4" />
+                </Button>
+                <RowActions
+                  disabled={pending}
+                  onEdit={() => setEditing(row)}
+                  onDelete={() => {
+                    if (confirm(`"${row.ad}" silinsin mi?`)) {
+                      run(() => onDelete(row.id), { success: "Kayıt silindi." });
+                    }
+                  }}
+                />
+              </div>
             ),
           },
         ]}
@@ -171,8 +195,22 @@ export function TedarikciList({
               <Label htmlFor="edit-ad">Ad *</Label>
               <Input id="edit-ad" name="ad" defaultValue={editing.ad} required />
             </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="edit-tier">Fiyat segmenti</Label>
+              <Input id="edit-tier" name="priceTier" defaultValue={editing.priceTier} placeholder="WHOLESALE, RETAIL…" />
+            </div>
           </FormSection>
         </FormModal>
+      )}
+      {kisiPartner && (
+        <KisiModal
+          partner={kisiPartner}
+          onClose={() => setKisiPartner(null)}
+          loadContacts={loadPartnerContacts}
+          onCreate={createKisi}
+          onUpdate={updateKisi}
+          onDelete={deleteKisi}
+        />
       )}
     </>
   );
@@ -213,6 +251,7 @@ export function UrunList({
         defaultSort={{ key: "ad", asc: true }}
         searchKeys={["ad", "raf"]}
         searchPlaceholder="Ürün veya raf ara…"
+        filterKeys={[...URUN_TANIM_PRIMARY_FILTER_KEYS]}
         emptyText="Henüz ürün eklenmemiş"
         emptyHint="Yukarıdaki butonla yeni ürün ekleyebilirsiniz."
         columns={[

@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Pencil, StickyNote, Trash2, Truck } from "lucide-react";
 import { DataTable } from "@/components/data-table";
+import { TEDARIKCI_ODEME_PRIMARY_FILTER_KEYS } from "@/lib/table-primary-filters";
 import { Button } from "@/components/ui/button";
 import { RecordWorkspaceToolbar } from "@/components/record-workspace-toolbar";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -45,6 +46,7 @@ const CELL_RENDERERS: Record<string, (row: OdemeTableRow) => ReactNode> = {
 const COLUMNS = [
   { key: "tarih", label: "Tarih" },
   { key: "tedarikciAdi", label: "Tedarikçi / Hizmet Sağlayıcı" },
+  { key: "hesap", label: "Hesap" },
   { key: "odenenTutar", label: "Ödenen Tutar" },
   { key: "notlar", label: "Notlar" },
 ] as const;
@@ -52,9 +54,11 @@ const COLUMNS = [
 export function OdemeWorkspace({
   rows,
   tedarikciler,
+  accounts,
 }: {
   rows: OdemeTableRow[];
   tedarikciler: string[];
+  accounts: { id: number; name: string }[];
 }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<OdemeTableRow | null>(null);
@@ -68,13 +72,14 @@ export function OdemeWorkspace({
       />
       <OdemeList rows={rows} onEdit={setEditing} />
       {createOpen && (
-        <OdemeModal mode="create" tedarikciler={tedarikciler} onClose={() => setCreateOpen(false)} />
+        <OdemeModal mode="create" tedarikciler={tedarikciler} accounts={accounts} onClose={() => setCreateOpen(false)} />
       )}
       {editing && (
         <OdemeModal
           mode="edit"
           row={editing}
           tedarikciler={tedarikciler}
+          accounts={accounts}
           onClose={() => setEditing(null)}
         />
       )}
@@ -105,9 +110,11 @@ function OdemeList({
         filterValue: (r: OdemeTableRow) =>
           col.key === "tedarikciAdi"
             ? r.tedarikciAdi
-            : col.key === "notlar"
-              ? r.notlar
-              : String((r as Record<string, unknown>)[col.key] ?? ""),
+            : col.key === "hesap"
+              ? r.hesap
+              : col.key === "notlar"
+                ? r.notlar
+                : String((r as Record<string, unknown>)[col.key] ?? ""),
       })),
       {
         key: "id",
@@ -127,6 +134,7 @@ function OdemeList({
       defaultSort={{ key: "tarih", asc: false }}
       searchKeys={["tedarikciAdi", "notlar", "tarih"]}
       searchPlaceholder="Tedarikçi, not veya tarih ara…"
+      filterKeys={[...TEDARIKCI_ODEME_PRIMARY_FILTER_KEYS]}
       amountFilter={{
         defaultField: "tutar",
         fields: [{ id: "tutar", label: "Ödenen Tutar", getValue: (r) => r._amount }],

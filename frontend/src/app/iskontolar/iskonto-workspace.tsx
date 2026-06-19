@@ -10,6 +10,7 @@ import {
   User,
 } from "lucide-react";
 import { DataTable } from "@/components/data-table";
+import { ISKONTO_PRIMARY_FILTER_KEYS } from "@/lib/table-primary-filters";
 import { Button } from "@/components/ui/button";
 import { RecordWorkspaceToolbar } from "@/components/record-workspace-toolbar";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -188,6 +189,7 @@ function IskontoList({
       defaultSort={{ key: "ad", asc: true }}
       searchKeys={["ad", "cari", "urun", "tur", "durum"]}
       searchPlaceholder="İskonto adı, cari veya ürün ara…"
+      filterKeys={[...ISKONTO_PRIMARY_FILTER_KEYS]}
       amountFilter={{
         defaultField: "deger",
         fields: [

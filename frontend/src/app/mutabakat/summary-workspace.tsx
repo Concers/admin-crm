@@ -10,6 +10,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { DataTable } from "@/components/data-table";
+import { MUTABAKAT_OZET_PRIMARY_FILTER_KEYS } from "@/lib/table-primary-filters";
 import { cn } from "@/lib/utils";
 import type { CariOzetRow } from "./mutabakat-rows";
 
@@ -87,6 +88,7 @@ export function SummaryWorkspace({ rows }: { rows: CariOzetRow[] }) {
       defaultSort={{ key: "acikBakiye", asc: false }}
       searchKeys={["cari"]}
       searchPlaceholder="Cari ara…"
+      filterKeys={[...MUTABAKAT_OZET_PRIMARY_FILTER_KEYS]}
       amountFilter={{
         defaultField: "acik",
         fields: [{ id: "acik", label: "Açık Bakiye", getValue: (r) => r._open }],

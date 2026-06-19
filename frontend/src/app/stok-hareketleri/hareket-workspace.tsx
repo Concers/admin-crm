@@ -10,6 +10,7 @@ import {
   Warehouse,
 } from "lucide-react";
 import { DataTable } from "@/components/data-table";
+import { HAREKET_PRIMARY_FILTER_KEYS } from "@/lib/table-primary-filters";
 import { RecordWorkspaceToolbar } from "@/components/record-workspace-toolbar";
 import { cn } from "@/lib/utils";
 import { HareketModal } from "./hareket-modal";
@@ -156,6 +157,7 @@ export function HareketWorkspace({
         rows={rows}
         searchKeys={["urun", "tur", "depo", "aciklama", "notlar", "tarih"]}
         searchPlaceholder="Ürün, depo veya açıklama ara…"
+        filterKeys={[...HAREKET_PRIMARY_FILTER_KEYS]}
         defaultSort={{ key: "tarih", asc: false }}
         amountFilter={{
           defaultField: "miktar",

@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Pencil, StickyNote, Trash2, Users } from "lucide-react";
 import { DataTable } from "@/components/data-table";
+import { TAHSILAT_PRIMARY_FILTER_KEYS } from "@/lib/table-primary-filters";
 import { Button } from "@/components/ui/button";
 import { RecordWorkspaceToolbar } from "@/components/record-workspace-toolbar";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -44,6 +45,7 @@ const CELL_RENDERERS: Record<string, (row: TahsilatTableRow) => ReactNode> = {
 const COLUMNS = [
   { key: "tarih", label: "Tarih" },
   { key: "musteriAdi", label: "Müşteri" },
+  { key: "hesap", label: "Hesap" },
   { key: "tahsilatTutari", label: "Tahsilat Tutarı" },
   { key: "notlar", label: "Notlar" },
 ] as const;
@@ -51,9 +53,11 @@ const COLUMNS = [
 export function TahsilatWorkspace({
   rows,
   musteriler,
+  accounts,
 }: {
   rows: TahsilatTableRow[];
   musteriler: string[];
+  accounts: { id: number; name: string }[];
 }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<TahsilatTableRow | null>(null);
@@ -67,13 +71,14 @@ export function TahsilatWorkspace({
       />
       <TahsilatList rows={rows} onEdit={setEditing} />
       {createOpen && (
-        <TahsilatModal mode="create" musteriler={musteriler} onClose={() => setCreateOpen(false)} />
+        <TahsilatModal mode="create" musteriler={musteriler} accounts={accounts} onClose={() => setCreateOpen(false)} />
       )}
       {editing && (
         <TahsilatModal
           mode="edit"
           row={editing}
           musteriler={musteriler}
+          accounts={accounts}
           onClose={() => setEditing(null)}
         />
       )}
@@ -104,9 +109,11 @@ function TahsilatList({
         filterValue: (r: TahsilatTableRow) =>
           col.key === "musteriAdi"
             ? r.musteriAdi
-            : col.key === "notlar"
-              ? r.notlar
-              : String((r as Record<string, unknown>)[col.key] ?? ""),
+            : col.key === "hesap"
+              ? r.hesap
+              : col.key === "notlar"
+                ? r.notlar
+                : String((r as Record<string, unknown>)[col.key] ?? ""),
       })),
       {
         key: "id",
@@ -126,6 +133,7 @@ function TahsilatList({
       defaultSort={{ key: "tarih", asc: false }}
       searchKeys={["musteriAdi", "notlar", "tarih"]}
       searchPlaceholder="Müşteri, not veya tarih ara…"
+      filterKeys={[...TAHSILAT_PRIMARY_FILTER_KEYS]}
       amountFilter={{
         defaultField: "tutar",
         fields: [{ id: "tutar", label: "Tahsilat Tutarı", getValue: (r) => r._amount }],

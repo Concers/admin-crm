@@ -1,19 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  /* Palet: 2a2b2a · 5e4955 · 996888 · c99da3 · c6ddf0
-     (kömür → koyu erik → mauve → tozlu pembe → açık mavi) */
-  --background: #eef3f8; /* açık mavi zemin (c6ddf0 yumuşatılmış) */
-  --foreground: #2a2b2a; /* kömür metin */
+  /* Palet: 2a2b2a · 5e4955 · 996888 · c99da3 · c6ddf0 — açık tema */
+  --background: #f6f5f7;
+  --foreground: #2a2b2a;
   --card: #ffffff;
-  --muted: #e7edf4; /* açık mavi-gri panel */
-  --muted-foreground: #6b606a; /* mauve-gri ikincil metin */
-  --border: #d6dde8; /* yumuşak mavi-gri kenarlık */
-  --primary: #996888; /* mauve marka */
+  --muted: #f0eef2;
+  --muted-foreground: #5e4955;
+  --border: #e5e1e8;
+  --primary: #996888;
   --primary-foreground: #ffffff;
-  --accent: #f0e7ee; /* açık mauve vurgu (aktif menü/hover) */
-  --ring: #c99da3; /* tozlu pembe odak halkası */
-  --success: #1a936f;
+  --accent: #ece8f4;
+  --ring: #996888;
+  --success: #059669;
   --danger: #dc2626;
   --radius: 0.75rem;
 }
@@ -39,6 +38,7 @@
 
 html {
   scroll-behavior: smooth;
+  color-scheme: light;
 }
 
 body {
@@ -197,3 +197,13 @@ body {
 .ui-dialog[data-state="open"] { animation: ui-content-in 0.18s ease-out; }
 .ui-dialog[data-state="closed"] { animation: ui-content-out 0.15s ease-in; }
 .ui-pop[data-state="open"] { animation: ui-pop-in 0.12s ease-out; transform-origin: var(--radix-dropdown-menu-content-transform-origin, center); }
+
+/* Yazdırılabilir cari ekstre */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white !important;
+  }
+}

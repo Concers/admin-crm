@@ -1,17 +1,26 @@
 import { PageShell } from "@/components/page-shell";
 import { StatCard, PanelCard } from "@/components/ui/stat-card";
 import { Banknote, TrendingUp, Users } from "lucide-react";
-import { getCashFlows, getPartners } from "@/lib/api";
+import { getAccounts, getCashFlows, getPartners } from "@/lib/api";
 import { formatCurrency, calendarMonth, calendarYear } from "@/lib/utils";
 import { TahsilatWorkspace } from "./tahsilat-workspace";
 import { mapTahsilatRows } from "./tahsilat-rows";
 
 export const dynamic = "force-dynamic";
 
-export default async function MusteriTahsilatPage() {
-  const [tahsilatlar, musteriler] = await Promise.all([
-    getCashFlows("COLLECTION"),
+export default async function MusteriTahsilatPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ hesap?: string }>;
+}) {
+  const sp = await searchParams;
+  const accountId = sp.hesap ? Number(sp.hesap) : undefined;
+  const validAccountId = accountId && Number.isInteger(accountId) ? accountId : undefined;
+
+  const [tahsilatlar, musteriler, accounts] = await Promise.all([
+    getCashFlows("COLLECTION", validAccountId),
     getPartners("CUSTOMER"),
+    getAccounts(),
   ]);
 
   const musteriAdlari = [
@@ -31,6 +40,8 @@ export default async function MusteriTahsilatPage() {
       .filter((t) => calendarMonth(t.date) === buAy && calendarYear(t.date) === buYil)
       .reduce((acc, t) => acc + t.amount, 0),
   };
+
+  const accountOpts = accounts.map((a) => ({ id: a.id, name: a.name }));
 
   return (
     <PageShell
@@ -71,7 +82,7 @@ export default async function MusteriTahsilatPage() {
         description="Excel ile aynı sütunlar — tarih, müşteri, tutar ve notlar"
         accent="emerald"
       >
-        <TahsilatWorkspace rows={rows} musteriler={musteriAdlari} />
+        <TahsilatWorkspace rows={rows} musteriler={musteriAdlari} accounts={accountOpts} />
       </PanelCard>
     </PageShell>
   );

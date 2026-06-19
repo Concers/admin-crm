@@ -1,5 +1,6 @@
 "use client";
 
+import { AccountSelectField } from "@/components/account-select-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -14,11 +15,13 @@ export function TahsilatModal({
   mode,
   row,
   musteriler,
+  accounts = [],
   onClose,
 }: {
   mode: "create" | "edit";
   row?: TahsilatTableRow;
   musteriler: string[];
+  accounts?: { id: number; name: string }[];
   onClose: () => void;
 }) {
   const { run, pending } = useActionToast();
@@ -97,6 +100,11 @@ export function TahsilatModal({
             defaultValue={isEdit ? String(row._amount) : ""}
           />
         </div>
+        <AccountSelectField
+          id={`${idPrefix}-account`}
+          accounts={accounts}
+          defaultValue={isEdit ? row._accountId : null}
+        />
         <div className="sm:col-span-2">
           <Label htmlFor={`${idPrefix}-notlar`}>Notlar</Label>
           <Textarea

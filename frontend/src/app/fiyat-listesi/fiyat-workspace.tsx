@@ -9,6 +9,7 @@ import {
   Users,
 } from "lucide-react";
 import { DataTable } from "@/components/data-table";
+import { FIYAT_PRIMARY_FILTER_KEYS } from "@/lib/table-primary-filters";
 import { Button } from "@/components/ui/button";
 import { RecordWorkspaceToolbar } from "@/components/record-workspace-toolbar";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -161,6 +162,7 @@ function FiyatList({
       defaultSort={{ key: "ad", asc: true }}
       searchKeys={["ad", "paraBirimi", "segment", "durum"]}
       searchPlaceholder="Liste adı, para birimi veya segment ara…"
+      filterKeys={[...FIYAT_PRIMARY_FILTER_KEYS]}
       amountFilter={{
         defaultField: "fiyat",
         fields: [{ id: "fiyat", label: "Ort. Fiyat", getValue: (r) => r._avgPrice }],

@@ -16,7 +16,7 @@ export function AppShell({
 }) {
   const pathname = usePathname();
 
-  if (pathname === "/login") return <>{children}</>;
+  if (pathname === "/login" || pathname.includes("/yazdir")) return <>{children}</>;
 
   return (
     <LayoutProvider role={role} userName={userName}>

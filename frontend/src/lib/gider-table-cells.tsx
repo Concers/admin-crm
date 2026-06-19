@@ -239,6 +239,14 @@ export const GIDER_SEARCH_KEYS = [
   "gun",
 ] as const;
 
+export const GIDER_PRIMARY_FILTER_KEYS = [
+  "yil",
+  "giderTuru",
+  "giderKategori",
+  "tedarikciAdi",
+  "periyotAy",
+] as const;
+
 export const GIDER_AMOUNT_FILTER = {
   defaultField: "pesin",
   fields: [

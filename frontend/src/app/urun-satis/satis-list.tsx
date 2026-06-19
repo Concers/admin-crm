@@ -9,6 +9,7 @@ import { useActionToast } from "@/hooks/use-action-toast";
 import {
   buildSatisDataColumns,
   SATIS_AMOUNT_FILTER,
+  SATIS_PRIMARY_FILTER_KEYS,
   SATIS_SEARCH_KEYS,
 } from "@/lib/satis-table-cells";
 import { deleteSatis } from "./actions";
@@ -86,6 +87,7 @@ function SatisList({
       defaultSort={{ key: "yil", asc: false }}
       searchPlaceholder="Ürün, müşteri, raf, not veya ay ara…"
       searchKeys={[...SATIS_SEARCH_KEYS]}
+      filterKeys={[...SATIS_PRIMARY_FILTER_KEYS]}
       amountFilter={SATIS_AMOUNT_FILTER}
       columns={columns}
       minTableWidth="2200px"

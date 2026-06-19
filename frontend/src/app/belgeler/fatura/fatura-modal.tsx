@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { EntityAttachments } from "@/components/entity-attachments";
 import { FormModal, FormSection } from "@/components/form-modal";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { formatCurrency, toDateInputValue } from "@/lib/utils";
@@ -161,6 +162,8 @@ export function FaturaModal({
           </span>
         </div>
       )}
+
+      {isEdit && <EntityAttachments entityName="Invoice" entityId={row.id} />}
     </FormModal>
   );
 }

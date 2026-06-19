@@ -1,18 +1,27 @@
 import { PageShell } from "@/components/page-shell";
 import { StatCard, PanelCard } from "@/components/ui/stat-card";
 import { Building2, TrendingDown, Wallet } from "lucide-react";
-import { getCashFlows, getPartners } from "@/lib/api";
+import { getAccounts, getCashFlows, getPartners } from "@/lib/api";
 import { formatCurrency, calendarMonth, calendarYear } from "@/lib/utils";
 import { OdemeWorkspace } from "./odeme-workspace";
 import { mapOdemeRows } from "./odeme-rows";
 
 export const dynamic = "force-dynamic";
 
-export default async function TedarikciOdemePage() {
-  const [odemeler, suppliers, serviceProviders] = await Promise.all([
-    getCashFlows("PAYMENT"),
+export default async function TedarikciOdemePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ hesap?: string }>;
+}) {
+  const sp = await searchParams;
+  const accountId = sp.hesap ? Number(sp.hesap) : undefined;
+  const validAccountId = accountId && Number.isInteger(accountId) ? accountId : undefined;
+
+  const [odemeler, suppliers, serviceProviders, accounts] = await Promise.all([
+    getCashFlows("PAYMENT", validAccountId),
     getPartners("SUPPLIER"),
     getPartners("SERVICE_PROVIDER"),
+    getAccounts(),
   ]);
 
   const tedarikciler = [...suppliers, ...serviceProviders].sort((a, b) =>
@@ -33,6 +42,8 @@ export default async function TedarikciOdemePage() {
       .filter((o) => calendarMonth(o.date) === buAy && calendarYear(o.date) === buYil)
       .reduce((acc, o) => acc + o.amount, 0),
   };
+
+  const accountOpts = accounts.map((a) => ({ id: a.id, name: a.name }));
 
   return (
     <PageShell
@@ -73,7 +84,7 @@ export default async function TedarikciOdemePage() {
         description="Excel ile aynı sütunlar — tarih, tedarikçi, tutar ve notlar"
         accent="rose"
       >
-        <OdemeWorkspace rows={rows} tedarikciler={tedarikciAdlari} />
+        <OdemeWorkspace rows={rows} tedarikciler={tedarikciAdlari} accounts={accountOpts} />
       </PanelCard>
     </PageShell>
   );

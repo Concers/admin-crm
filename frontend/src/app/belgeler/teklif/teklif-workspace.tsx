@@ -10,6 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { DataTable } from "@/components/data-table";
+import { TEKLIF_PRIMARY_FILTER_KEYS } from "@/lib/table-primary-filters";
 import { Button } from "@/components/ui/button";
 import { RecordWorkspaceToolbar } from "@/components/record-workspace-toolbar";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -189,6 +190,7 @@ function TeklifList({
       defaultSort={{ key: "tarih", asc: false }}
       searchKeys={["cari", "durum", "notlar", "tarih", "gecerlilik"]}
       searchPlaceholder="Cari, durum veya not ara…"
+      filterKeys={[...TEKLIF_PRIMARY_FILTER_KEYS]}
       amountFilter={{
         defaultField: "toplam",
         fields: [

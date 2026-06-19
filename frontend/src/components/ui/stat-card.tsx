@@ -4,11 +4,11 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 
 const accentMap = {
-  blue: "bg-blue-50 text-blue-600 ring-blue-100",
-  emerald: "bg-emerald-50 text-emerald-600 ring-emerald-100",
-  amber: "bg-amber-50 text-amber-600 ring-amber-100",
-  rose: "bg-rose-50 text-rose-600 ring-rose-100",
-  indigo: "bg-indigo-50 text-indigo-600 ring-indigo-100",
+  blue: "bg-blue-500/15 text-blue-300 ring-blue-500/25",
+  emerald: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/25",
+  amber: "bg-amber-500/15 text-amber-300 ring-amber-500/25",
+  rose: "bg-rose-500/15 text-rose-300 ring-rose-500/25",
+  indigo: "bg-indigo-500/15 text-indigo-300 ring-indigo-500/25",
 } as const;
 
 /** Önceki döneme göre değişim göstergesi. */
@@ -45,7 +45,7 @@ export function StatCard({
               <span
                 className={cn(
                   "inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-medium tabular-nums",
-                  up ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                  up ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-300"
                 )}
               >
                 {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
@@ -81,9 +81,9 @@ export function InfoBanner({
   accent?: "blue" | "amber" | "emerald";
 }) {
   const styles = {
-    blue: "border-blue-100 bg-blue-50/70 text-blue-950",
-    amber: "border-amber-100 bg-amber-50/70 text-amber-950",
-    emerald: "border-emerald-100 bg-emerald-50/70 text-emerald-950",
+    blue: "border-blue-500/25 bg-blue-500/10 text-blue-200",
+    amber: "border-amber-500/25 bg-amber-500/10 text-amber-200",
+    emerald: "border-emerald-500/25 bg-emerald-500/10 text-emerald-200",
   };
   return (
     <div className={cn("rounded-xl border px-4 py-3.5 text-sm leading-relaxed", styles[accent])}>

@@ -1,17 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import {
-  createPartner,
-  updatePartner,
-  deletePartner,
-  createProduct,
-  updateProduct,
-  deleteProduct,
-  createExpenseCategory,
-  updateExpenseCategory,
-  deleteExpenseCategory,
-} from "@/lib/api";
+import { createPartner, updatePartner, deletePartner, createProduct, updateProduct, deleteProduct, createExpenseCategory, updateExpenseCategory, deleteExpenseCategory, createContact, updateContact, deleteContact, getPartnerContacts } from "@/lib/api";
 import { toPartnerType } from "@/lib/partner-types";
 
 function trim(val: FormDataEntryValue | null) {
@@ -42,15 +32,17 @@ async function runAction(fn: () => Promise<unknown>): Promise<{ error?: string }
 export async function createTedarikci(formData: FormData) {
   const ad = trim(formData.get("ad"));
   const tip = toPartnerType(trim(formData.get("tip")) || "SUPPLIER");
+  const priceTier = trim(formData.get("priceTier")) || null;
   if (!ad) return { error: "Ad gerekli." };
-  return runAction(() => createPartner({ name: ad, type: tip }));
+  return runAction(() => createPartner({ name: ad, type: tip, priceTier }));
 }
 
 export async function updateTedarikci(id: number, formData: FormData) {
   const ad = trim(formData.get("ad"));
   const tip = toPartnerType(trim(formData.get("tip")) || "SUPPLIER");
+  const priceTier = trim(formData.get("priceTier")) || null;
   if (!ad) return { error: "Ad gerekli." };
-  return runAction(() => updatePartner(id, { name: ad, type: tip }));
+  return runAction(() => updatePartner(id, { name: ad, type: tip, priceTier }));
 }
 
 export async function deleteTedarikci(id: number) {
@@ -105,4 +97,38 @@ export async function updateUrunGider(id: number, formData: FormData) {
 
 export async function deleteUrunGider(id: number) {
   return runAction(() => deleteExpenseCategory(id));
+}
+
+export async function loadPartnerContacts(partnerId: number) {
+  return getPartnerContacts(partnerId);
+}
+
+export async function createKisi(partnerId: number, formData: FormData) {
+  const name = trim(formData.get("name"));
+  if (!name) return { error: "Ad gerekli." };
+  return runAction(() =>
+    createContact(partnerId, {
+      name,
+      title: trim(formData.get("title")) || null,
+      phone: trim(formData.get("phone")) || null,
+      email: trim(formData.get("email")) || null,
+    })
+  );
+}
+
+export async function updateKisi(id: number, formData: FormData) {
+  const name = trim(formData.get("name"));
+  if (!name) return { error: "Ad gerekli." };
+  return runAction(() =>
+    updateContact(id, {
+      name,
+      title: trim(formData.get("title")) || null,
+      phone: trim(formData.get("phone")) || null,
+      email: trim(formData.get("email")) || null,
+    })
+  );
+}
+
+export async function deleteKisi(id: number) {
+  return runAction(() => deleteContact(id));
 }

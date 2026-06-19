@@ -2,11 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { createCashFlow, deleteCashFlow, updateCashFlow } from "@/lib/api";
+import { friendlyApiError } from "@/lib/action-errors";
 import { dateInputToApi } from "@/lib/dates";
 
 function num(v: FormDataEntryValue | null) {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
+}
+
+function accountIdFromForm(formData: FormData) {
+  const raw = String(formData.get("accountId") ?? "").trim();
+  if (!raw) return null;
+  const id = Number(raw);
+  return Number.isInteger(id) ? id : null;
 }
 
 export async function createTahsilat(formData: FormData): Promise<void | { error?: string }> {
@@ -25,13 +33,16 @@ export async function createTahsilat(formData: FormData): Promise<void | { error
       partnerName: ad,
       type: "COLLECTION",
       amount: tutar,
+      accountId: accountIdFromForm(formData),
       notes: (formData.get("notlar") as string) || null,
     });
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Tahsilat kaydedilemedi." };
+    return { error: friendlyApiError(e, "Tahsilat kaydedilemedi.") };
   }
 
   revalidatePath("/musteri-tahsilat");
+  revalidatePath("/kasa-banka");
+  revalidatePath("/raporlar/musteri");
   revalidatePath("/");
 }
 
@@ -51,18 +62,23 @@ export async function updateTahsilat(id: number, formData: FormData): Promise<vo
       partnerName: ad,
       type: "COLLECTION",
       amount: tutar,
+      accountId: accountIdFromForm(formData),
       notes: (formData.get("notlar") as string) || null,
     });
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Tahsilat güncellenemedi." };
+    return { error: friendlyApiError(e, "Tahsilat güncellenemedi.") };
   }
 
   revalidatePath("/musteri-tahsilat");
+  revalidatePath("/kasa-banka");
+  revalidatePath("/raporlar/musteri");
   revalidatePath("/");
 }
 
 export async function deleteTahsilat(id: number) {
   await deleteCashFlow(id);
   revalidatePath("/musteri-tahsilat");
+  revalidatePath("/kasa-banka");
+  revalidatePath("/raporlar/musteri");
   revalidatePath("/");
 }

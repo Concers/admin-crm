@@ -114,6 +114,8 @@ async function buildSaleData(body: Record<string, unknown>, saleId?: number) {
     dueDate: resolveDueDate(body, date),
     shelfLocation: (body.shelfLocation as string) || null,
     notes: (body.notes as string) || null,
+    currency: String(body.currency ?? "TRY").trim().toUpperCase() || "TRY",
+    exchangeRate: toNumber(body.exchangeRate, 1),
     purchaseUnitCost: cost.purchaseUnitCost,
     productionUnitCost: cost.productionUnitCost,
     overheadUnitCost: cost.overheadUnitCost,
@@ -264,6 +266,8 @@ async function buildPurchaseData(body: Record<string, unknown>) {
     dueDate: resolveDueDate(body, date),
     shelfLocation: (body.shelfLocation as string) || null,
     notes: (body.notes as string) || null,
+    currency: String(body.currency ?? "TRY").trim().toUpperCase() || "TRY",
+    exchangeRate: toNumber(body.exchangeRate, 1),
   };
 }
 

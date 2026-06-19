@@ -10,6 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { DataTable } from "@/components/data-table";
+import { IADE_PRIMARY_FILTER_KEYS } from "@/lib/table-primary-filters";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -204,6 +205,7 @@ function IadeList({
       defaultSort={{ key: "tarih", asc: false }}
       searchKeys={["cari", "urun", "tur", "sebep", "notlar", "tarih"]}
       searchPlaceholder="Cari, ürün, sebep veya not ara…"
+      filterKeys={[...IADE_PRIMARY_FILTER_KEYS]}
       amountFilter={{
         defaultField: "tutar",
         fields: [{ id: "tutar", label: "Tutar", getValue: (r) => r._amount }],

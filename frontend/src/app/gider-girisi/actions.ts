@@ -30,6 +30,8 @@ export async function createGider(formData: FormData) {
   });
 
   revalidatePath("/gider-girisi");
+  revalidatePath("/raporlar/urun");
+  revalidatePath("/raporlar/tedarikci");
   revalidatePath("/");
 }
 
@@ -61,11 +63,15 @@ export async function updateGider(id: number, formData: FormData): Promise<void 
   }
 
   revalidatePath("/gider-girisi");
+  revalidatePath("/raporlar/urun");
+  revalidatePath("/raporlar/tedarikci");
   revalidatePath("/");
 }
 
 export async function deleteGider(id: number) {
   await deleteExpense(id);
   revalidatePath("/gider-girisi");
+  revalidatePath("/raporlar/urun");
+  revalidatePath("/raporlar/tedarikci");
   revalidatePath("/");
 }

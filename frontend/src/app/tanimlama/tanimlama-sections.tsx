@@ -16,7 +16,7 @@ import { SimpleAdList, TedarikciList, UrunList } from "./tanimlama-lists";
 export function TedarikciListClient({
   rows,
 }: {
-  rows: { id: number; tip: PartnerType; ad: string }[];
+  rows: { id: number; tip: PartnerType; ad: string; priceTier: string }[];
 }) {
   return (
     <TedarikciList

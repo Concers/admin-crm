@@ -12,6 +12,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { DataTable } from "@/components/data-table";
+import { URUN_TAKIP_PRIMARY_FILTER_KEYS } from "@/lib/table-primary-filters";
 import { Button } from "@/components/ui/button";
 import { RecordWorkspaceToolbar } from "@/components/record-workspace-toolbar";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -185,6 +186,7 @@ function UrunTakipList({
       defaultSort={{ key: "urunAdi", asc: true }}
       searchKeys={["urunAdi", "tedarikci", "sinif", "ureticiKim", "hangiAnaliz"]}
       searchPlaceholder="Ürün, tedarikçi veya analiz ara…"
+      filterKeys={[...URUN_TAKIP_PRIMARY_FILTER_KEYS]}
       columns={columns}
       minTableWidth="5200px"
       emptyText="Henüz ürün takip kaydı yok"

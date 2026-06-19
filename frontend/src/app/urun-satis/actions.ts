@@ -2,11 +2,32 @@
 
 import { revalidatePath } from "next/cache";
 import { createSale, deleteSale, updateSale } from "@/lib/api";
+import { friendlyApiError } from "@/lib/action-errors";
 import { dateInputToApi } from "@/lib/dates";
 
 function num(v: FormDataEntryValue | null, fallback = 0) {
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
+}
+
+function salePayload(formData: FormData, date: string) {
+  const termRaw = String(formData.get("termDays") ?? "").trim();
+  const termDays = termRaw ? num(termRaw) : undefined;
+  const currency = String(formData.get("currency") ?? "TRY").trim().toUpperCase() || "TRY";
+  const exchangeRate = num(formData.get("exchangeRate"), 1);
+  return {
+    date,
+    productName: String(formData.get("urunAdi") ?? "").trim(),
+    customerName: String(formData.get("musteri") ?? "").trim(),
+    quantity: num(formData.get("satisAdeti")),
+    unitPrice: num(formData.get("birimSatisFiyati")),
+    vatRate: num(formData.get("kdvOrani"), 0.2),
+    paidAmount: num(formData.get("pesinOdenen")),
+    notes: (formData.get("notlar") as string) || null,
+    ...(termDays && termDays > 0 ? { termDays } : {}),
+    currency,
+    exchangeRate: currency === "TRY" ? 1 : exchangeRate,
+  };
 }
 
 export async function createSatis(formData: FormData): Promise<void | { error?: string }> {
@@ -21,22 +42,14 @@ export async function createSatis(formData: FormData): Promise<void | { error?: 
   }
 
   try {
-    await createSale({
-      date,
-      productName: urunAdi,
-      customerName: musteriAdi,
-      quantity: satisAdeti,
-      unitPrice: num(formData.get("birimSatisFiyati")),
-      vatRate: num(formData.get("kdvOrani"), 0.2),
-      paidAmount: num(formData.get("pesinOdenen")),
-      notes: (formData.get("notlar") as string) || null,
-    });
+    await createSale(salePayload(formData, date));
   } catch (e) {
-    // Surface stock/validation messages from the backend to the UI.
-    return { error: e instanceof Error ? e.message : "Satış kaydedilemedi." };
+    return { error: friendlyApiError(e, "Satış kaydedilemedi.") };
   }
 
   revalidatePath("/urun-satis");
+  revalidatePath("/raporlar/urun");
+  revalidatePath("/raporlar/musteri");
   revalidatePath("/");
 }
 
@@ -52,26 +65,21 @@ export async function updateSatis(id: number, formData: FormData): Promise<void 
   }
 
   try {
-    await updateSale(id, {
-      date,
-      productName: urunAdi,
-      customerName: musteriAdi,
-      quantity: satisAdeti,
-      unitPrice: num(formData.get("birimSatisFiyati")),
-      vatRate: num(formData.get("kdvOrani"), 0.2),
-      paidAmount: num(formData.get("pesinOdenen")),
-      notes: (formData.get("notlar") as string) || null,
-    });
+    await updateSale(id, salePayload(formData, date));
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Satış güncellenemedi." };
+    return { error: friendlyApiError(e, "Satış güncellenemedi.") };
   }
 
   revalidatePath("/urun-satis");
+  revalidatePath("/raporlar/urun");
+  revalidatePath("/raporlar/musteri");
   revalidatePath("/");
 }
 
 export async function deleteSatis(id: number) {
   await deleteSale(id);
   revalidatePath("/urun-satis");
+  revalidatePath("/raporlar/urun");
+  revalidatePath("/raporlar/musteri");
   revalidatePath("/");
 }

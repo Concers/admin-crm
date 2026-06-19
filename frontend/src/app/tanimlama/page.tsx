@@ -37,6 +37,7 @@ export default async function TanimlamaPage() {
     id: p.id,
     tip: p.type as PartnerType,
     ad: p.name,
+    priceTier: p.priceTier ?? "",
   }));
   const urunler = sortByName(urunlerData).map((u) => ({ id: u.id, ad: u.name, raf: u.shelfLocation ?? "" }));
   const genelGiderler = sortByName(genelGiderData).map((g) => ({

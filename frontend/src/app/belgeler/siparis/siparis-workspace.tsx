@@ -9,6 +9,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { DataTable } from "@/components/data-table";
+import { SIPARIS_PRIMARY_FILTER_KEYS } from "@/lib/table-primary-filters";
 import { Button } from "@/components/ui/button";
 import { RecordWorkspaceToolbar } from "@/components/record-workspace-toolbar";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -195,6 +196,7 @@ function SiparisList({
       defaultSort={{ key: "tarih", asc: false }}
       searchKeys={["cari", "tur", "durum", "notlar", "tarih"]}
       searchPlaceholder="Cari, tür, durum veya not ara…"
+      filterKeys={[...SIPARIS_PRIMARY_FILTER_KEYS]}
       amountFilter={{
         defaultField: "toplam",
         fields: [

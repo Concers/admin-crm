@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Calculator, StickyNote, TrendingUp } from "lucide-react";
+import { Calculator, StickyNote, TrendingUp, Wand2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { FxFields } from "@/components/fx-fields";
+import { VadeFields } from "@/components/vade-fields";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -10,6 +13,7 @@ import { FormModal, FormSection } from "@/components/form-modal";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { formatCurrency, toDateInputValue, cn } from "@/lib/utils";
 import { createSatis, updateSatis } from "./actions";
+import { lookupUnitPrice } from "@/lib/pricing-actions";
 import type { SatisRow } from "./satis-list";
 
 const KDV_OPTIONS = [
@@ -39,6 +43,10 @@ export function SatisModal({
   const [adet, setAdet] = useState(isEdit ? String(row._quantity) : "");
   const [kdv, setKdv] = useState(isEdit ? String(row._vatRate) : "0.2");
   const [pesin, setPesin] = useState(isEdit ? String(row._paidAmount || "") : "");
+  const [tarih, setTarih] = useState(isEdit ? toDateInputValue(row._date) : "");
+  const [musteri, setMusteri] = useState(isEdit ? row._customerName : "");
+  const [urun, setUrun] = useState(isEdit ? row._productName : "");
+  const [priceLoading, setPriceLoading] = useState(false);
 
   const preview = useMemo(() => {
     const unit = Number(birim) || 0;
@@ -90,7 +98,8 @@ export function SatisModal({
               name="tarih"
               type="date"
               required
-              defaultValue={isEdit ? toDateInputValue(row._date) : ""}
+              value={tarih}
+              onChange={(e) => setTarih(e.target.value)}
             />
           </div>
           <div>
@@ -99,7 +108,8 @@ export function SatisModal({
               id={`${p}-urunAdi`}
               name="urunAdi"
               required
-              defaultValue={isEdit ? row._productName : ""}
+              value={urun}
+              onChange={(e) => setUrun(e.target.value)}
             >
               <option value="" disabled>
                 Ürün seçin
@@ -117,7 +127,8 @@ export function SatisModal({
               id={`${p}-musteri`}
               name="musteri"
               required
-              defaultValue={isEdit ? row._customerName : ""}
+              value={musteri}
+              onChange={(e) => setMusteri(e.target.value)}
             >
               <option value="" disabled>
                 Cari seçin
@@ -134,16 +145,34 @@ export function SatisModal({
         <FormSection title="Tutarlar">
           <div>
             <Label htmlFor={`${p}-birimSatisFiyati`}>Birim Satış Fiyatı (₺)</Label>
-            <Input
-              id={`${p}-birimSatisFiyati`}
-              name="birimSatisFiyati"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="0"
-              value={birim}
-              onChange={(e) => setBirim(e.target.value)}
-            />
+            <div className="flex gap-2">
+              <Input
+                id={`${p}-birimSatisFiyati`}
+                name="birimSatisFiyati"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0"
+                value={birim}
+                onChange={(e) => setBirim(e.target.value)}
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={priceLoading || !musteri || !urun}
+                onClick={async () => {
+                  setPriceLoading(true);
+                  const price = await lookupUnitPrice(musteri, urun);
+                  if (price != null) setBirim(String(price));
+                  setPriceLoading(false);
+                }}
+              >
+                <Wand2 className="h-4 w-4" />
+                {priceLoading ? "…" : "Fiyat"}
+              </Button>
+            </div>
           </div>
           <div>
             <Label htmlFor={`${p}-satisAdeti`}>Satış Adedi *</Label>
@@ -187,6 +216,11 @@ export function SatisModal({
               onChange={(e) => setPesin(e.target.value)}
             />
           </div>
+        </FormSection>
+
+        <FormSection title="Vade ve döviz">
+          <VadeFields idPrefix={p} invoiceDate={tarih} />
+          <FxFields idPrefix={p} amountTry={preview.kdvDahil} />
         </FormSection>
 
         <div className="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50/80 to-[var(--card)] p-4 ring-1 ring-blue-100/60">

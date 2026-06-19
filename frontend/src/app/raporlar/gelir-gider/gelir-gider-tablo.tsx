@@ -2,6 +2,7 @@
 
 import { useMemo, type ReactNode } from "react";
 import { DataTable } from "@/components/data-table";
+import { GELIR_GIDER_TABLO_PRIMARY_FILTER_KEYS } from "@/lib/table-primary-filters";
 import { cn } from "@/lib/utils";
 import type { GelirGiderMatrixRow } from "./gelir-gider-rows";
 
@@ -121,6 +122,7 @@ export function GelirGiderMatrixTable({
       defaultSort={{ key: "satisTutar", asc: false }}
       searchKeys={["satisUrun", "alimUrun", "urunGiderUrun", "genelGiderTur"]}
       searchPlaceholder="Ürün veya gider türü ara…"
+      filterKeys={[...GELIR_GIDER_TABLO_PRIMARY_FILTER_KEYS]}
       minTableWidth="1400px"
       emptyText="Seçilen dönemde kayıt yok"
       emptyHint="Tarih aralığını değiştirin."

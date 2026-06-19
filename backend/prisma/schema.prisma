@@ -304,6 +304,16 @@ model Warehouse {
   movements StockMovement[]
 }
 
+/// Fiziksel raf lokasyonları — ürün shelfLocation ile eşleşir; boş raflar takip edilir.
+model Shelf {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  location  String?
+  notes     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
 /// Stok hareket defteri — alım/satış dışındaki açık hareketler
 /// (sayım düzeltmesi, fire, depolar arası transfer).
 model StockMovement {

@@ -34,6 +34,10 @@ export function TedarikciEkleForm() {
           <Label htmlFor="tedarikci-ad">Ad *</Label>
           <Input id="tedarikci-ad" name="ad" required placeholder="Firma veya kişi adı" />
         </div>
+        <div>
+          <Label htmlFor="tedarikci-tier">Fiyat segmenti</Label>
+          <Input id="tedarikci-tier" name="priceTier" placeholder="Örn. WHOLESALE, RETAIL" />
+        </div>
       </AddModalButton>
     </div>
   );

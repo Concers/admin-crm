@@ -11,6 +11,11 @@ import {
   Wallet,
 } from "lucide-react";
 import { DataTable } from "@/components/data-table";
+import {
+  MUTABAKAT_FATURA_PRIMARY_FILTER_KEYS,
+  MUTABAKAT_ODEME_PRIMARY_FILTER_KEYS,
+  MUTABAKAT_TAHSIS_PRIMARY_FILTER_KEYS,
+} from "@/lib/table-primary-filters";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -376,6 +381,7 @@ export function ReconcileWorkspace({ data }: { data: Reconciliation }) {
           defaultSort={{ key: "tarih", asc: true }}
           searchKeys={["faturaNo", "tur", "durum"]}
           searchPlaceholder="Fatura no veya durum ara…"
+          filterKeys={[...MUTABAKAT_FATURA_PRIMARY_FILTER_KEYS]}
           amountFilter={{
             defaultField: "bakiye",
             fields: [
@@ -397,6 +403,7 @@ export function ReconcileWorkspace({ data }: { data: Reconciliation }) {
           defaultSort={{ key: "tarih", asc: true }}
           searchKeys={["tur", "tarih"]}
           searchPlaceholder="Tür veya tarih ara…"
+          filterKeys={[...MUTABAKAT_ODEME_PRIMARY_FILTER_KEYS]}
           amountFilter={{
             defaultField: "kalan",
             fields: [
@@ -419,6 +426,7 @@ export function ReconcileWorkspace({ data }: { data: Reconciliation }) {
             defaultSort={{ key: "tutar", asc: false }}
             searchKeys={["fatura", "odeme"]}
             searchPlaceholder="Fatura veya ödeme ara…"
+            filterKeys={[...MUTABAKAT_TAHSIS_PRIMARY_FILTER_KEYS]}
             emptyText="Henüz tahsis yok"
           />
         </section>

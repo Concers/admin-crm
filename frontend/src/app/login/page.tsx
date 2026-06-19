@@ -12,29 +12,29 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen">
-      <div className="hidden flex-1 flex-col justify-between bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 p-10 text-white lg:flex">
+      <div className="hidden flex-1 flex-col justify-between bg-gradient-to-br from-[#c6ddf0] via-[#f0e8ed] to-[#c99da3] p-10 text-[#2a2b2a] lg:flex">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/60 backdrop-blur">
             <LayoutDashboard className="h-5 w-5" />
           </div>
           <div>
             <p className="text-lg font-semibold">Kadim ERP</p>
-            <p className="text-sm text-blue-100">Firma yönetim paneli</p>
+            <p className="text-sm text-[#5e4955]">Firma yönetim paneli</p>
           </div>
         </div>
         <div className="max-w-md space-y-4">
           <h2 className="text-3xl font-semibold leading-tight">
             Stok, gider ve satışlarınızı tek yerden yönetin
           </h2>
-          <p className="text-blue-100/90 leading-relaxed">
+          <p className="leading-relaxed text-[#5e4955]">
             Excel kayıtlarınızın dijital karşılığı. Gider girişi, alım-satış, raporlar ve
             belgeler — hepsi güvenli ve düzenli.
           </p>
         </div>
-        <p className="text-xs text-blue-200/70">© Kadim Naturel</p>
+        <p className="text-xs text-[#5e4955]/70">© Kadim Naturel</p>
       </div>
 
-      <div className="flex flex-1 items-center justify-center p-6 sm:p-10">
+      <div className="flex flex-1 items-center justify-center bg-[var(--background)] p-6 sm:p-10">
         <div className="w-full max-w-[400px]">
           <div className="mb-8 lg:hidden">
             <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--primary)] text-white">

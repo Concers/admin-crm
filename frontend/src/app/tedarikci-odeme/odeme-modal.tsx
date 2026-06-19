@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AccountSelectField } from "@/components/account-select-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -15,11 +16,13 @@ export function OdemeModal({
   mode,
   row,
   tedarikciler,
+  accounts = [],
   onClose,
 }: {
   mode: "create" | "edit";
   row?: OdemeTableRow;
   tedarikciler: string[];
+  accounts?: { id: number; name: string }[];
   onClose: () => void;
 }) {
   const { run, pending } = useActionToast();
@@ -98,6 +101,11 @@ export function OdemeModal({
             defaultValue={isEdit ? String(row._amount) : ""}
           />
         </div>
+        <AccountSelectField
+          id={`${idPrefix}-account`}
+          accounts={accounts}
+          defaultValue={isEdit ? row._accountId : null}
+        />
         <div className="sm:col-span-2">
           <Label htmlFor={`${idPrefix}-notlar`}>Notlar</Label>
           <Textarea

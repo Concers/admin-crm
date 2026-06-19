@@ -1,0 +1,23 @@
+export type AlimRow = {
+  id: number;
+  tarih: string;
+  urunAdi: string;
+  tedarikci: string;
+  raf: string;
+  birimAlimFiyati: string;
+  alimAdeti: number;
+  toplamTutar: string;
+  kdvDahilTutar: string;
+  pesinOdenen: string;
+  _date: string;
+  _productName: string;
+  _supplierName: string;
+  _quantity: number;
+  _unitPrice: number;
+  _vatRate: number;
+  _paidAmount: number;
+  _totalAmount: number;
+  _vatIncludedAmount: number;
+  _shelfLocation: string;
+  _notes: string;
+};

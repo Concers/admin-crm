@@ -9,9 +9,26 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-const API_URL = process.env.API_URL ?? "http://localhost:4000/api";
+const API_URL = process.env.API_URL ?? "http://127.0.0.1:4000/api";
 
 type Json = Record<string, unknown>;
+
+const API_CONN_ERR =
+  "API sunucusuna bağlanılamadı. Backend çalışıyor mu? (proje kökünde: npm run dev:backend veya npm run dev:all)";
+
+/** Retry briefly — backend may be restarting (tsx watch) when a page loads. */
+async function fetchApi(url: string, init?: RequestInit): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await fetch(url, init);
+    } catch (err) {
+      lastError = err;
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 400));
+    }
+  }
+  throw lastError;
+}
 
 /** Attach the session token (httpOnly cookie) as a Bearer header. */
 async function authHeaders(): Promise<Record<string, string>> {
@@ -23,12 +40,12 @@ async function authHeaders(): Promise<Record<string, string>> {
 async function apiGet<T>(path: string): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${API_URL}${path}`, {
+    res = await fetchApi(`${API_URL}${path}`, {
       headers: await authHeaders(),
       cache: "no-store",
     });
   } catch {
-    throw new Error("API sunucusuna bağlanılamadı. Backend çalışıyor mu? (npm run dev:backend)");
+    throw new Error(API_CONN_ERR);
   }
   // An expired/invalid session (e.g. after a JWT_SECRET change) → send the user
   // to login instead of crashing the page with a raw fetch error.
@@ -40,7 +57,7 @@ async function apiGet<T>(path: string): Promise<T> {
 async function apiSend<T>(method: "POST" | "PUT" | "DELETE", path: string, body?: Json): Promise<T | null> {
   let res: Response;
   try {
-    res = await fetch(`${API_URL}${path}`, {
+    res = await fetchApi(`${API_URL}${path}`, {
       method,
       headers: {
         ...(body ? { "Content-Type": "application/json" } : {}),
@@ -50,7 +67,7 @@ async function apiSend<T>(method: "POST" | "PUT" | "DELETE", path: string, body?
       cache: "no-store",
     });
   } catch {
-    throw new Error("API sunucusuna bağlanılamadı. Backend çalışıyor mu? (npm run dev:backend)");
+    throw new Error(API_CONN_ERR);
   }
   if (res.status === 401) throw new Error("Oturum süresi doldu. Lütfen yeniden giriş yapın.");
   if (!res.ok) {
@@ -81,6 +98,7 @@ export interface Partner {
   phone?: string | null;
   email?: string | null;
   address?: string | null;
+  priceTier?: string | null;
 }
 
 export interface Product {
@@ -163,6 +181,8 @@ export interface CashFlow {
   amount: number;
   notes: string | null;
   partner: Partner;
+  account?: Account | null;
+  accountId?: number | null;
 }
 
 export interface ProductDevelopment {
@@ -222,8 +242,13 @@ export const deletePurchase = (id: number) => apiSend("DELETE", `/purchases/${id
 export const createExpense = (body: Json) => apiSend<Expense>("POST", "/expenses", body);
 export const deleteExpense = (id: number) => apiSend("DELETE", `/expenses/${id}`);
 
-export const getCashFlows = (type?: CashFlowType) =>
-  apiGet<CashFlow[]>(`/cashflows${type ? `?type=${type}` : ""}`);
+export const getCashFlows = (type?: CashFlowType, accountId?: number) => {
+  const qs = new URLSearchParams();
+  if (type) qs.set("type", type);
+  if (accountId != null) qs.set("accountId", String(accountId));
+  const q = qs.toString();
+  return apiGet<CashFlow[]>(`/cashflows${q ? `?${q}` : ""}`);
+};
 export const createCashFlow = (body: Json) => apiSend<CashFlow>("POST", "/cashflows", body);
 export const deleteCashFlow = (id: number) => apiSend("DELETE", `/cashflows/${id}`);
 
@@ -246,9 +271,12 @@ export const getStockReport = () => apiGet<StockRow[]>("/reports/stock");
 export interface PartnerBalance {
   name: string;
   salesTotal: number;
+  salesUpfront: number;
   collected: number;
   receivable: number;
   purchaseTotal: number;
+  expenseTotal: number;
+  expenseUpfront: number;
   paidToThem: number;
   payable: number;
   net: number; // >0 net receivable (alacak), <0 net payable (borç)
@@ -301,6 +329,7 @@ export interface CustomerStatement {
   collections: CashFlow[];
   saleTotal: number;
   vatIncludedTotal: number;
+  upfront: number;
   collected: number;
   receivable: number;
 }
@@ -310,15 +339,26 @@ export const getCustomerStatement = (name: string) =>
 export interface SupplierStatement {
   purchases: Purchase[];
   payments: CashFlow[];
+  expenses: Expense[];
   purchaseTotal: number;
   upfront: number;
+  expenseTotal: number;
+  expenseUpfront: number;
   paid: number;
   debt: number;
 }
 export const getSupplierStatement = (name: string) =>
   apiGet<SupplierStatement>(`/reports/supplier?name=${encodeURIComponent(name)}`);
 
-export interface ProductReport { sales: Sale[]; purchases: Purchase[]; saleAmount: number; purchaseAmount: number; profit: number }
+export interface ProductReport {
+  sales: Sale[];
+  purchases: Purchase[];
+  expenses: Expense[];
+  saleAmount: number;
+  purchaseAmount: number;
+  expenseAmount: number;
+  profit: number;
+}
 export const getProductReport = (name?: string) =>
   apiGet<ProductReport>(`/reports/product${name ? `?name=${encodeURIComponent(name)}` : ""}`);
 
@@ -385,13 +425,42 @@ export interface AccountBalance { id: number; name: string; type: string; balanc
 export const getAccounts = () => apiGet<Account[]>("/accounts");
 export const getAccountBalances = () => apiGet<AccountBalance[]>("/accounts/balances");
 export const createAccount = (body: Json) => apiSend("POST", "/accounts", body);
+export const updateAccount = (id: number, body: Json) => apiSend("PUT", `/accounts/${id}`, body);
 export const deleteAccount = (id: number) => apiSend("DELETE", `/accounts/${id}`);
+
+export interface Contact {
+  id: number;
+  partnerId: number;
+  name: string;
+  title: string | null;
+  phone: string | null;
+  email: string | null;
+}
+export const getPartnerContacts = (partnerId: number) =>
+  apiGet<Contact[]>(`/partners/${partnerId}/contacts`);
+export const createContact = (partnerId: number, body: Json) =>
+  apiSend<Contact>("POST", `/partners/${partnerId}/contacts`, body);
+export const updateContact = (id: number, body: Json) => apiSend<Contact>("PUT", `/contacts/${id}`, body);
+export const deleteContact = (id: number) => apiSend("DELETE", `/contacts/${id}`);
 
 export interface Warehouse { id: number; name: string; location: string | null }
 export const getWarehouses = () => apiGet<Warehouse[]>("/warehouses");
 export const createWarehouse = (body: Json) => apiSend("POST", "/warehouses", body);
 export const updateWarehouse = (id: number, body: Json) => apiSend("PUT", `/warehouses/${id}`, body);
 export const deleteWarehouse = (id: number) => apiSend("DELETE", `/warehouses/${id}`);
+
+export interface Shelf {
+  id: number;
+  code: string;
+  location: string | null;
+  notes: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+export const getShelves = () => apiGet<Shelf[]>("/shelves");
+export const createShelf = (body: Json) => apiSend<Shelf>("POST", "/shelves", body);
+export const updateShelf = (id: number, body: Json) => apiSend<Shelf>("PUT", `/shelves/${id}`, body);
+export const deleteShelf = (id: number) => apiSend("DELETE", `/shelves/${id}`);
 
 // --- Stock movements ---------------------------------------------------------
 export interface StockMovement { id: number; date: string; type: string; quantity: number; reason: string | null; notes: string | null; product: Product; warehouse: Warehouse | null; warehouseId?: number | null; productId?: number }
@@ -401,19 +470,36 @@ export const createStockMovement = (body: Json) => apiSend("POST", "/stock-movem
 // --- Documents: orders / quotes / invoices (line-item) -----------------------
 export interface DocLine { id?: number; productId: number; quantity: number; unitPrice: number; vatRate?: number; lineTotal?: number }
 export interface OrderDoc { id: number; docType: "SALES" | "PURCHASE"; partnerId: number; date: string; status: string; totalAmount: number; vatIncludedAmount: number; notes: string | null; lines: DocLine[] }
-export const getOrders = () => apiGet<OrderDoc[]>("/orders");
+export const getOrders = (params?: { status?: string; docType?: string }) => {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set("status", params.status);
+  if (params?.docType) qs.set("docType", params.docType);
+  const q = qs.toString();
+  return apiGet<OrderDoc[]>(`/orders${q ? `?${q}` : ""}`);
+};
 export const createOrder = (body: Json) => apiSend("POST", "/orders", body);
 export const updateOrder = (id: number, body: Json) => apiSend("PUT", `/orders/${id}`, body);
 export const deleteOrder = (id: number) => apiSend("DELETE", `/orders/${id}`);
 
 export interface QuoteDoc { id: number; partnerId: number; date: string; validUntil: string | null; status: string; totalAmount: number; vatIncludedAmount: number; notes: string | null; lines: DocLine[] }
-export const getQuotes = () => apiGet<QuoteDoc[]>("/quotes");
+export const getQuotes = (params?: { status?: string }) => {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set("status", params.status);
+  const q = qs.toString();
+  return apiGet<QuoteDoc[]>(`/quotes${q ? `?${q}` : ""}`);
+};
 export const createQuote = (body: Json) => apiSend("POST", "/quotes", body);
 export const updateQuote = (id: number, body: Json) => apiSend("PUT", `/quotes/${id}`, body);
 export const deleteQuote = (id: number) => apiSend("DELETE", `/quotes/${id}`);
 
 export interface InvoiceDoc { id: number; docType: "SALES" | "PURCHASE"; partnerId: number; number: string | null; date: string; dueDate: string | null; status: string; totalAmount: number; vatIncludedAmount: number; notes: string | null; lines: DocLine[] }
-export const getInvoices = () => apiGet<InvoiceDoc[]>("/invoices");
+export const getInvoices = (params?: { status?: string; docType?: string }) => {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set("status", params.status);
+  if (params?.docType) qs.set("docType", params.docType);
+  const q = qs.toString();
+  return apiGet<InvoiceDoc[]>(`/invoices${q ? `?${q}` : ""}`);
+};
 export const createInvoice = (body: Json) => apiSend("POST", "/invoices", body);
 export const updateInvoice = (id: number, body: Json) => apiSend("PUT", `/invoices/${id}`, body);
 export const deleteInvoice = (id: number) => apiSend("DELETE", `/invoices/${id}`);
@@ -447,7 +533,12 @@ export const getBoms = () => apiGet<BomDoc[]>("/boms");
 export const createBom = (body: Json) => apiSend("POST", "/boms", body);
 export const updateBom = (id: number, body: Json) => apiSend("PUT", `/boms/${id}`, body);
 export const deleteBom = (id: number) => apiSend("DELETE", `/boms/${id}`);
-export const getProductionOrders = () => apiGet<ProductionOrderDoc[]>("/production-orders");
+export const getProductionOrders = (params?: { status?: string }) => {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set("status", params.status);
+  const q = qs.toString();
+  return apiGet<ProductionOrderDoc[]>(`/production-orders${q ? `?${q}` : ""}`);
+};
 export const createProductionOrder = (body: Json) => apiSend("POST", "/production-orders", body);
 export const updateProductionOrder = (id: number, body: Json) => apiSend("PUT", `/production-orders/${id}`, body);
 export const deleteProductionOrder = (id: number) => apiSend("DELETE", `/production-orders/${id}`);
@@ -513,6 +604,74 @@ export const getCostCenter = (start?: string, end?: string) => {
 
 export interface CashFlowRow { key: string; label: string; inflow: number; outflow: number; net: number; cumulative: number }
 export const getCashFlowProjection = (months = 6) => apiGet<CashFlowRow[]>(`/reports/cash-flow-projection?months=${months}`);
+
+export interface SalesRepPerformanceRow {
+  rep: string;
+  revenue: number;
+  cost: number;
+  profit: number;
+  marginPct: number;
+  orders: number;
+}
+export const getSalesRepPerformance = (start?: string, end?: string) => {
+  const qs = new URLSearchParams();
+  if (start) qs.set("start", start);
+  if (end) qs.set("end", end);
+  const q = qs.toString();
+  return apiGet<SalesRepPerformanceRow[]>(`/reports/sales-rep-performance${q ? `?${q}` : ""}`);
+};
+
+export interface PeriodLock {
+  id: number;
+  year: number;
+  month: number | null;
+  note: string | null;
+  createdAt: string;
+}
+export const getPeriodLocks = () => apiGet<PeriodLock[]>("/period-locks");
+export const createPeriodLock = (body: Json) => apiSend<PeriodLock>("POST", "/period-locks", body);
+export const deletePeriodLock = (id: number) => apiSend("DELETE", `/period-locks/${id}`);
+
+export interface PriceResolveResult {
+  price: number | null;
+  reason?: string;
+  currency?: string;
+  tier?: string;
+  priceListId?: number;
+  priceListName?: string;
+}
+export const resolvePrice = (partnerId: number, productId: number) =>
+  apiGet<PriceResolveResult>(`/price-resolve?partnerId=${partnerId}&productId=${productId}`);
+
+export interface TcmbRate {
+  date: string | null;
+  code: string;
+  unit: number;
+  forexBuying: number | null;
+  forexSelling: number | null;
+  banknoteBuying: number | null;
+  banknoteSelling: number | null;
+}
+export const getTcmbRate = (currency: string) =>
+  apiGet<TcmbRate>(`/exchange-rates/tcmb?currency=${encodeURIComponent(currency)}`);
+
+// --- Attachments (metadata / URL only) ---------------------------------------
+export interface Attachment {
+  id: number;
+  entityName: string;
+  entityId: number;
+  fileName: string;
+  url: string;
+  mimeType: string | null;
+  size: number | null;
+  uploadedAt: string;
+}
+export const getAttachments = (entityName: string, entityId: number) =>
+  apiGet<Attachment[]>(
+    `/attachments?entityName=${encodeURIComponent(entityName)}&entityId=${entityId}`,
+  );
+export const createAttachment = (body: Json) => apiSend<Attachment>("POST", "/attachments", body);
+export const deleteAttachment = (id: number) => apiSend("DELETE", `/attachments/${id}`);
 
 // --- Transaction updates (edit forms) ----------------------------------------
 export const updateSale = (id: number, body: Json) => apiSend<Sale>("PUT", `/sales/${id}`, body);

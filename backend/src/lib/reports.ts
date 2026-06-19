@@ -71,8 +71,8 @@ export async function getStockReport() {
  * In this B2B data the same firm can be both a customer and a supplier, so a
  * single net balance is computed across both roles:
  *
- *   receivable = sales to them − collections from them   (they owe us)
- *   payable    = purchases from them − (upfront + payments to them)  (we owe them)
+ *   receivable = sales to them − peşin − collections from them   (they owe us)
+ *   payable    = purchases + expenses − (peşin + payments to them)
  *   net        = receivable − payable
  *
  *   net > 0  → net receivable (alacak — they owe us)
@@ -81,56 +81,64 @@ export async function getStockReport() {
 export interface PartnerBalance {
   name: string;
   salesTotal: number;
+  salesUpfront: number;
   collected: number;
   receivable: number;
   purchaseTotal: number;
+  expenseTotal: number;
+  expenseUpfront: number;
   paidToThem: number;
   payable: number;
   net: number;
 }
 
 export async function getPartnerBalances(): Promise<PartnerBalance[]> {
-  const [partners, sales, purchases, cashflows] = await Promise.all([
+  const [partners, sales, purchases, expenses, cashflows] = await Promise.all([
     prisma.partner.findMany(),
-    prisma.sale.findMany({ select: { customerId: true, vatIncludedAmount: true } }),
+    prisma.sale.findMany({ select: { customerId: true, vatIncludedAmount: true, paidAmount: true } }),
     prisma.purchase.findMany({ select: { supplierId: true, vatIncludedAmount: true, paidAmount: true } }),
+    prisma.expense.findMany({ select: { partnerId: true, totalAmount: true, paidAmount: true } }),
     prisma.cashFlow.findMany({ select: { partnerId: true, type: true, amount: true } }),
   ]);
 
   return partners
     .map((p) => {
-      const salesTotal = sales
-        .filter((s) => s.customerId === p.id)
-        .reduce((sum, s) => sum + s.vatIncludedAmount, 0);
+      const partnerSales = sales.filter((s) => s.customerId === p.id);
+      const salesTotal = partnerSales.reduce((sum, s) => sum + s.vatIncludedAmount, 0);
+      const salesUpfront = partnerSales.reduce((sum, s) => sum + s.paidAmount, 0);
       const collected = cashflows
         .filter((c) => c.partnerId === p.id && c.type === "COLLECTION")
         .reduce((sum, c) => sum + c.amount, 0);
 
-      const purchaseTotal = purchases
-        .filter((x) => x.supplierId === p.id)
-        .reduce((sum, x) => sum + x.vatIncludedAmount, 0);
-      const upfront = purchases
-        .filter((x) => x.supplierId === p.id)
-        .reduce((sum, x) => sum + x.paidAmount, 0);
+      const partnerPurchases = purchases.filter((x) => x.supplierId === p.id);
+      const purchaseTotal = partnerPurchases.reduce((sum, x) => sum + x.vatIncludedAmount, 0);
+      const purchaseUpfront = partnerPurchases.reduce((sum, x) => sum + x.paidAmount, 0);
       const payments = cashflows
         .filter((c) => c.partnerId === p.id && c.type === "PAYMENT")
         .reduce((sum, c) => sum + c.amount, 0);
-      const paidToThem = upfront + payments;
 
-      const receivable = salesTotal - collected;
-      const payable = purchaseTotal - paidToThem;
+      const partnerExpenses = expenses.filter((e) => e.partnerId === p.id);
+      const expenseTotal = partnerExpenses.reduce((sum, e) => sum + e.totalAmount, 0);
+      const expenseUpfront = partnerExpenses.reduce((sum, e) => sum + e.paidAmount, 0);
+
+      const paidToThem = purchaseUpfront + payments + expenseUpfront;
+      const receivable = salesTotal - salesUpfront - collected;
+      const payable = purchaseTotal + expenseTotal - paidToThem;
       return {
         name: p.name,
         salesTotal,
+        salesUpfront,
         collected,
         receivable,
         purchaseTotal,
+        expenseTotal,
+        expenseUpfront,
         paidToThem,
         payable,
         net: receivable - payable,
       };
     })
-    .filter((b) => b.salesTotal > 0 || b.purchaseTotal > 0);
+    .filter((b) => b.salesTotal > 0 || b.purchaseTotal > 0 || b.expenseTotal > 0);
 }
 
 /** Partners we have a net receivable from (alacak), largest first. */
@@ -270,25 +278,41 @@ export async function getGelirGiderReport(start: Date, end: Date) {
   };
 }
 
-/** Customer account statement (satışlar + tahsilatlar). */
+/** Customer account statement (satışlar + tahsilatlar). Excel "Müşteri Rapor". */
 export async function getCustomerStatement(name: string) {
-  // Match by name regardless of type: in this B2B data the same firms act as
-  // both supplier and customer, so customers aren't necessarily type=CUSTOMER.
   const customer = await prisma.partner.findFirst({ where: { name } });
   if (!customer) {
-    return { sales: [], collections: [], saleTotal: 0, vatIncludedTotal: 0, collected: 0, receivable: 0 };
+    return {
+      sales: [],
+      collections: [],
+      saleTotal: 0,
+      vatIncludedTotal: 0,
+      upfront: 0,
+      collected: 0,
+      receivable: 0,
+    };
   }
 
   const [sales, collections] = await Promise.all([
-    prisma.sale.findMany({ where: { customerId: customer.id }, include: { product: true }, orderBy: { date: "asc" } }),
-    prisma.cashFlow.findMany({ where: { partnerId: customer.id, type: "COLLECTION" }, orderBy: { date: "asc" } }),
+    prisma.sale.findMany({
+      where: { customerId: customer.id },
+      include: { product: true, customer: true },
+      orderBy: { date: "asc" },
+    }),
+    prisma.cashFlow.findMany({
+      where: { partnerId: customer.id, type: "COLLECTION" },
+      include: { partner: true },
+      orderBy: { date: "asc" },
+    }),
   ]);
 
   const saleTotal = sales.reduce((sum, s) => sum + s.totalAmount, 0);
   const vatIncludedTotal = sales.reduce((sum, s) => sum + s.vatIncludedAmount, 0);
+  const upfront = sales.reduce((sum, s) => sum + s.paidAmount, 0);
   const collected = collections.reduce((sum, c) => sum + c.amount, 0);
+  const receivable = vatIncludedTotal - upfront - collected;
 
-  return { sales, collections, saleTotal, vatIncludedTotal, collected, receivable: vatIncludedTotal - collected };
+  return { sales, collections, saleTotal, vatIncludedTotal, upfront, collected, receivable };
 }
 
 /** Supplier account statement (alımlar + ödemeler). */
@@ -297,35 +321,84 @@ export async function getSupplierStatement(name: string) {
     where: { name, type: { in: ["SUPPLIER", "SERVICE_PROVIDER"] } },
   });
   if (!supplier) {
-    return { purchases: [], payments: [], purchaseTotal: 0, upfront: 0, paid: 0, debt: 0 };
+    return {
+      purchases: [],
+      payments: [],
+      expenses: [],
+      purchaseTotal: 0,
+      upfront: 0,
+      expenseTotal: 0,
+      expenseUpfront: 0,
+      paid: 0,
+      debt: 0,
+    };
   }
 
-  const [purchases, payments] = await Promise.all([
-    prisma.purchase.findMany({ where: { supplierId: supplier.id }, include: { product: true }, orderBy: { date: "asc" } }),
-    prisma.cashFlow.findMany({ where: { partnerId: supplier.id, type: "PAYMENT" }, orderBy: { date: "asc" } }),
+  const [purchases, payments, expenses] = await Promise.all([
+    prisma.purchase.findMany({
+      where: { supplierId: supplier.id },
+      include: { product: true, supplier: true },
+      orderBy: { date: "asc" },
+    }),
+    prisma.cashFlow.findMany({
+      where: { partnerId: supplier.id, type: "PAYMENT" },
+      include: { partner: true },
+      orderBy: { date: "asc" },
+    }),
+    prisma.expense.findMany({
+      where: { partnerId: supplier.id },
+      include: { product: true, partner: true },
+      orderBy: { date: "asc" },
+    }),
   ]);
 
   const purchaseTotal = purchases.reduce((sum, p) => sum + p.vatIncludedAmount, 0);
   const upfront = purchases.reduce((sum, p) => sum + p.paidAmount, 0);
+  const expenseTotal = expenses.reduce((sum, e) => sum + e.totalAmount, 0);
+  const expenseUpfront = expenses.reduce((sum, e) => sum + e.paidAmount, 0);
   const paid = payments.reduce((sum, p) => sum + p.amount, 0);
+  const debt = purchaseTotal - upfront + expenseTotal - expenseUpfront - paid;
 
-  return { purchases, payments, purchaseTotal, upfront, paid, debt: purchaseTotal - upfront - paid };
+  return {
+    purchases,
+    payments,
+    expenses,
+    purchaseTotal,
+    upfront,
+    expenseTotal,
+    expenseUpfront,
+    paid,
+    debt,
+  };
 }
 
-/** Product analysis — sales vs purchases and gross margin. */
+/** Product analysis — Excel "Ürün Raporu": satış, alım, ürün giderleri, kâr/zarar. */
 export async function getProductReport(name?: string) {
   const product = name ? await prisma.product.findFirst({ where: { name } }) : null;
   const where = product ? { productId: product.id } : {};
+  const expenseWhere = product
+    ? { scope: "PRODUCT" as const, productId: product.id }
+    : { scope: "PRODUCT" as const, productId: { not: null } };
 
-  const [sales, purchases] = await Promise.all([
-    prisma.sale.findMany({ where, include: { customer: true }, orderBy: { date: "asc" } }),
-    prisma.purchase.findMany({ where, include: { supplier: true }, orderBy: { date: "asc" } }),
+  const [sales, purchases, expenses] = await Promise.all([
+    prisma.sale.findMany({ where, include: { customer: true, product: true }, orderBy: { date: "asc" } }),
+    prisma.purchase.findMany({ where, include: { supplier: true, product: true }, orderBy: { date: "asc" } }),
+    prisma.expense.findMany({ where: expenseWhere, include: { product: true, partner: true }, orderBy: { date: "asc" } }),
   ]);
 
   const saleAmount = sales.reduce((sum, s) => sum + s.totalAmount, 0);
   const purchaseAmount = purchases.reduce((sum, p) => sum + p.totalAmount, 0);
+  const expenseAmount = expenses.reduce((sum, e) => sum + e.totalAmount, 0);
 
-  return { sales, purchases, saleAmount, purchaseAmount, profit: saleAmount - purchaseAmount };
+  return {
+    sales,
+    purchases,
+    expenses,
+    saleAmount,
+    purchaseAmount,
+    expenseAmount,
+    profit: saleAmount - purchaseAmount - expenseAmount,
+  };
 }
 
 // =============================================================================

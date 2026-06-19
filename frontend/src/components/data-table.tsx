@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DataTableToolbar, type ToolbarSelect } from "@/components/data-table-toolbar";
+import { TableToolbar, type TableToolbarFilter } from "@/components/table-toolbar";
 import { isFilterActive, type ColFilter, type FacetColumn } from "@/components/table-faceted-filters";
+import { resolvePrimaryFilterKeys } from "@/lib/table-filter-keys";
 import { uniqueStrings } from "@/lib/utils";
 
 export type Column<T> = {
@@ -15,6 +16,8 @@ export type Column<T> = {
   sortable?: boolean;
   /** false ise sütun filtresi gösterilmez */
   filterable?: boolean;
+  /** true ise yalnızca filtre için kullanılır, tabloda gösterilmez */
+  hidden?: boolean;
   /** Sütun filtresi türü: çok-seçim (category, varsayılan) veya sayısal aralık (number) */
   filterType?: "category" | "number";
   /** Sıralama için ham değer (sayı, tarih ISO, vb.) */
@@ -239,6 +242,7 @@ export function DataTable<T extends Record<string, unknown>>({
   filters,
   amountFilter,
   columnFilters = true,
+  filterKeys,
   defaultSort,
   emptyText = "Kayıt bulunamadı.",
   emptyHint = "Filtreleri temizleyin veya yeni kayıt ekleyin.",
@@ -254,6 +258,8 @@ export function DataTable<T extends Record<string, unknown>>({
   amountFilter?: { fields: AmountFilterField<T>[]; defaultField?: string };
   /** Her sütun başlığı altında filtre (varsayılan: açık) */
   columnFilters?: boolean;
+  /** Toolbar’da gösterilecek önemli filtre sütunları (en fazla 5; belirtilmezse otomatik seçilir) */
+  filterKeys?: string[];
   defaultSort?: { key: string; asc: boolean };
   emptyText?: string;
   emptyHint?: string;
@@ -274,6 +280,21 @@ export function DataTable<T extends Record<string, unknown>>({
   const filterableColumns = useMemo(
     () => columns.filter(isFilterableColumn),
     [columns]
+  );
+
+  const primaryFilterKeys = useMemo(
+    () => resolvePrimaryFilterKeys(columns, filterKeys),
+    [columns, filterKeys]
+  );
+
+  const visibleColumns = useMemo(
+    () => columns.filter((c) => !c.hidden),
+    [columns]
+  );
+
+  const primaryFilterColumns = useMemo(
+    () => filterableColumns.filter((c) => primaryFilterKeys.includes(c.key)),
+    [filterableColumns, primaryFilterKeys]
   );
 
   const colByKey = useMemo(() => {
@@ -313,7 +334,7 @@ export function DataTable<T extends Record<string, unknown>>({
   }, [columnFilters, filterableColumns, searchFiltered]);
 
   const sortableColumns = useMemo(
-    () => columns.filter((c) => c.sortable !== false && c.key !== "id" && c.key !== "sil"),
+    () => columns.filter((c) => !c.hidden && c.sortable !== false && c.key !== "id" && c.key !== "sil"),
     [columns]
   );
 
@@ -451,19 +472,21 @@ export function DataTable<T extends Record<string, unknown>>({
     });
   }, []);
 
-  // Inline filter dropdowns: per-column facets (single-select) + custom filters.
-  const toolbarSelects: ToolbarSelect[] = [
+  // Inline filter dropdowns: yalnızca önemli sütunlar + özel filtreler.
+  const toolbarSelects: TableToolbarFilter[] = [
     ...(columnFilters
-      ? facetColumns
-          .filter((fc) => fc.type === "category")
-          .map((fc) => {
-            const cur = columnFilterValues[fc.key];
+      ? primaryFilterColumns
+          .filter((col) => col.filterType !== "number")
+          .map((col) => {
+            const fc = facetColumns.find((f) => f.key === col.key);
+            const cur = columnFilterValues[col.key];
             return {
-              key: fc.key,
-              label: fc.label,
+              key: col.key,
+              label: col.label,
               value: cur && cur.type === "category" ? cur.values[0] ?? "" : "",
-              options: (fc.options ?? []).map((o) => o.value),
-              onChange: (v: string) => setColumnFilter(fc.key, v ? { type: "category", values: [v] } : null),
+              options: (fc?.options ?? []).map((o) => o.value),
+              onChange: (v: string) =>
+                setColumnFilter(col.key, v ? { type: "category", values: [v] } : null),
             };
           })
       : []),
@@ -484,51 +507,33 @@ export function DataTable<T extends Record<string, unknown>>({
     })),
   ];
 
-  const toggleSort = (key: string) => {
-    if (sortKey === key) setAsc(!asc);
-    else {
-      setSortKey(key);
-      setAsc(true);
-    }
-  };
 
   return (
     <div className="space-y-3">
       {showToolbar ? (
-        <DataTableToolbar
+        <TableToolbar
           showSearch={Boolean(searchKeys?.length)}
           searchPlaceholder={searchPlaceholder}
           query={query}
           onQueryChange={setQuery}
-          selects={toolbarSelects}
-          amount={
-            amountFilter?.fields.length
-              ? {
-                  fields: amountFilter.fields.map((f) => ({ id: f.id, label: f.label })),
-                  field: amountField,
-                  onField: setAmountField,
-                  min: amountMin,
-                  max: amountMax,
-                  onMin: setAmountMin,
-                  onMax: setAmountMax,
-                  active: hasAmountFilter,
-                }
-              : undefined
-          }
-          sort={
-            !preserveOrder && sortableColumns.length > 0
-              ? {
-                  columns: sortableColumns.map((c) => ({ key: c.key, label: c.label })),
-                  sortKey,
-                  asc,
-                  onToggle: toggleSort,
-                  onDir: setAsc,
-                }
-              : undefined
-          }
-          count={filtered.length}
+          columnFilters={toolbarSelects}
+          amountFields={amountFilter?.fields.map((f) => ({ id: f.id, label: f.label }))}
+          amountField={amountField}
+          onAmountFieldChange={setAmountField}
+          amountMin={amountMin}
+          amountMax={amountMax}
+          onAmountMinChange={setAmountMin}
+          onAmountMaxChange={setAmountMax}
+          sortableColumns={sortableColumns.map((c) => ({ key: c.key, label: c.label }))}
+          sortKey={preserveOrder ? null : sortKey}
+          onSortKeyChange={setSortKey}
+          asc={asc}
+          onAscChange={setAsc}
+          showSort={!preserveOrder && sortableColumns.length > 0}
+          activeFilterCount={activeFilterCount + (query.trim() ? 1 : 0)}
           hasActiveFilters={hasActiveFilters}
           onClear={clearFilters}
+          count={filtered.length}
         />
       ) : null}
 
@@ -537,7 +542,7 @@ export function DataTable<T extends Record<string, unknown>>({
           <table className="w-full text-sm" style={{ minWidth: minTableWidth }}>
             <thead className="sticky top-0 z-[1] bg-[var(--accent)] backdrop-blur-sm">
               <tr className="border-b border-[var(--border)] text-left text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
-                {columns.map((col) => {
+                {visibleColumns.map((col) => {
                   const sortable = !preserveOrder && col.sortable !== false && col.key !== "id" && col.key !== "sil";
                   const colFilterActive = isFilterActive(columnFilterValues[col.key]);
                   return (
@@ -573,7 +578,7 @@ export function DataTable<T extends Record<string, unknown>>({
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={columns.length} className="px-4 py-14 text-center">
+                  <td colSpan={visibleColumns.length} className="px-4 py-14 text-center">
                     <div className="mx-auto flex max-w-sm flex-col items-center gap-2 text-[var(--muted-foreground)]">
                       <Inbox className="h-10 w-10 opacity-40" />
                       <p className="font-medium text-[var(--foreground)]">{emptyText}</p>
@@ -595,7 +600,7 @@ export function DataTable<T extends Record<string, unknown>>({
                     i % 2 === 1 ? "bg-[var(--muted)]/20" : ""
                   } ${onRowClick ? "cursor-pointer hover:bg-[var(--accent)]" : "hover:bg-[var(--muted)]/35"}`}
                 >
-                  {columns.map((col) => (
+                  {visibleColumns.map((col) => (
                     <td
                       key={col.key}
                       className={`px-4 py-2.5 align-middle ${

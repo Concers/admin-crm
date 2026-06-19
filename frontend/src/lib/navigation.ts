@@ -35,6 +35,7 @@ const giris: NavItem[] = [
   { href: "/urun-satis", label: "Ürün Satış", icon: TrendingUp, roles: ["ADMIN", "SALES_REP"] },
   { href: "/tedarikci-odeme", label: "Tedarikçi Ödeme", icon: CreditCard, roles: ["ADMIN"] },
   { href: "/musteri-tahsilat", label: "Müşteri Tahsilat", icon: Wallet, roles: ["ADMIN", "SALES_REP"] },
+  { href: "/kasa-banka", label: "Kasa / Banka", icon: Wallet, roles: ["ADMIN"] },
   { href: "/yeni-urun-takip", label: "Yeni Ürün Takip", icon: PackageSearch, roles: ["ADMIN", "WAREHOUSE_MANAGER"] },
 ];
 
@@ -81,10 +82,12 @@ const analizler: NavItem[] = [
   { href: "/raporlar/musteri-karlilik", label: "Müşteri Kârlılık", icon: BarChart3, roles: ["ADMIN"] },
   { href: "/raporlar/gider-merkezi", label: "Gider Merkezi", icon: BarChart3, roles: ["ADMIN"] },
   { href: "/raporlar/nakit-akis", label: "Nakit Akış", icon: BarChart3, roles: ["ADMIN"] },
+  { href: "/raporlar/satis-temsilcisi", label: "Satış Temsilcisi", icon: BarChart3, roles: ["ADMIN"] },
 ];
 
 const sistem: NavItem[] = [
   { href: "/kullanicilar", label: "Kullanıcılar", icon: Users, roles: ["ADMIN"] },
+  { href: "/donem-kapatma", label: "Dönem Kapatma", icon: History, roles: ["ADMIN"] },
   { href: "/islem-gecmisi", label: "İşlem Geçmişi", icon: History, roles: ["ADMIN"] },
 ];
 

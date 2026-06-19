@@ -11,6 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { DataTable } from "@/components/data-table";
+import { EMIR_PRIMARY_FILTER_KEYS } from "@/lib/table-primary-filters";
 import { Button } from "@/components/ui/button";
 import { RecordWorkspaceToolbar } from "@/components/record-workspace-toolbar";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -191,6 +192,7 @@ function EmirList({
       defaultSort={{ key: "baslangic", asc: false }}
       searchKeys={["mamul", "recete", "durum", "notlar"]}
       searchPlaceholder="Mamul, reçete veya durum ara…"
+      filterKeys={[...EMIR_PRIMARY_FILTER_KEYS]}
       amountFilter={{
         defaultField: "miktar",
         fields: [{ id: "miktar", label: "Miktar", getValue: (r) => r._quantity }],

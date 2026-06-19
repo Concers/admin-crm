@@ -14,12 +14,17 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
   const password = String(formData.get("password") ?? "");
   if (!email || !password) return { error: "E-posta ve şifre gerekli." };
 
-  const res = await fetch(`${API_URL}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+      cache: "no-store",
+    });
+  } catch {
+    return { error: "API sunucusuna bağlanılamadı. Backend çalışıyor mu? (npm run dev:backend)" };
+  }
 
   if (!res.ok) return { error: "Geçersiz e-posta veya şifre." };
 

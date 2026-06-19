@@ -15,6 +15,12 @@ import { parseDate, toNumber } from "../lib/calculations.js";
 export const inventoryRouter = Router();
 
 const warehouseSchema = z.object({ name: z.string().min(1), location: z.string().optional() });
+const shelfSchema = z.object({
+  code: z.string().min(1),
+  location: z.string().optional(),
+  notes: z.string().optional(),
+  isActive: z.boolean().optional(),
+});
 const accountSchema = z.object({
   name: z.string().min(1),
   type: z.enum(["CASH", "BANK"]),
@@ -69,6 +75,66 @@ inventoryRouter.delete(
     if (!id) return res.status(400).json({ error: "invalid id" });
     await prisma.warehouse.delete({ where: { id } });
     await recordAudit({ userId: req.auth?.userId, action: "DELETE", entityName: "Warehouse", entityId: id });
+    res.status(204).end();
+  }),
+);
+
+// --- Shelves (physical rack locations) ---------------------------------------
+inventoryRouter.get(
+  "/shelves",
+  asyncHandler(async (_req, res) => res.json(await prisma.shelf.findMany({ orderBy: { code: "asc" } }))),
+);
+
+inventoryRouter.post(
+  "/shelves",
+  requireRole("ADMIN"),
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const data = validateBody(shelfSchema, req.body, res);
+    if (!data) return;
+    const shelf = await prisma.shelf.create({
+      data: {
+        code: data.code.trim(),
+        location: data.location?.trim() || null,
+        notes: data.notes?.trim() || null,
+        isActive: data.isActive ?? true,
+      },
+    });
+    await recordAudit({ userId: req.auth?.userId, action: "CREATE", entityName: "Shelf", entityId: shelf.id });
+    res.status(201).json(shelf);
+  }),
+);
+
+inventoryRouter.put(
+  "/shelves/:id",
+  requireRole("ADMIN"),
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid id" });
+    if (!(await prisma.shelf.findUnique({ where: { id } }))) return res.status(404).json({ error: "not_found" });
+    const data = validateBody(shelfSchema, req.body, res);
+    if (!data) return;
+    const shelf = await prisma.shelf.update({
+      where: { id },
+      data: {
+        code: data.code.trim(),
+        location: data.location?.trim() || null,
+        notes: data.notes?.trim() || null,
+        ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
+      },
+    });
+    await recordAudit({ userId: req.auth?.userId, action: "UPDATE", entityName: "Shelf", entityId: shelf.id });
+    res.json(shelf);
+  }),
+);
+
+inventoryRouter.delete(
+  "/shelves/:id",
+  requireRole("ADMIN"),
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid id" });
+    await prisma.shelf.delete({ where: { id } });
+    await recordAudit({ userId: req.auth?.userId, action: "DELETE", entityName: "Shelf", entityId: id });
     res.status(204).end();
   }),
 );

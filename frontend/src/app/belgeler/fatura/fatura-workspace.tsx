@@ -11,6 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { DataTable } from "@/components/data-table";
+import { FATURA_PRIMARY_FILTER_KEYS } from "@/lib/table-primary-filters";
 import { Button } from "@/components/ui/button";
 import { RecordWorkspaceToolbar } from "@/components/record-workspace-toolbar";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -220,6 +221,7 @@ function FaturaList({
       defaultSort={{ key: "tarih", asc: false }}
       searchKeys={["faturaNo", "cari", "tur", "durum", "notlar", "tarih"]}
       searchPlaceholder="Fatura no, cari veya durum ara…"
+      filterKeys={[...FATURA_PRIMARY_FILTER_KEYS]}
       amountFilter={{
         defaultField: "toplam",
         fields: [

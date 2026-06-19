@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { MapPin, Pencil, Trash2, Warehouse } from "lucide-react";
 import { DataTable } from "@/components/data-table";
+import { DEPO_PRIMARY_FILTER_KEYS } from "@/lib/table-primary-filters";
 import { Button } from "@/components/ui/button";
 import { RecordWorkspaceToolbar } from "@/components/record-workspace-toolbar";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -101,6 +102,7 @@ function DepoList({
       defaultSort={{ key: "depo", asc: true }}
       searchKeys={["depo", "lokasyon"]}
       searchPlaceholder="Depo veya lokasyon ara…"
+      filterKeys={[...DEPO_PRIMARY_FILTER_KEYS]}
       columns={columns}
       emptyText="Henüz depo kaydı yok"
       emptyHint="Yukarıdaki butonla ilk deponuzu ekleyebilirsiniz."

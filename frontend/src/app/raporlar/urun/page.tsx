@@ -1,60 +1,166 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { BarChart2 } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
 import { Card, CardContent } from "@/components/ui/card";
-import { DataTable } from "@/components/data-table";
-import { TrendLineChart } from "@/components/charts";
-import { getProductReport, getProducts } from "@/lib/api";
-import { formatCurrency } from "@/lib/calculations";
+import { getExpenseCategories, getPartners, getProductReport, getProducts } from "@/lib/api";
+import { UrunAlimTable, UrunGiderTable, UrunSatisTable } from "./urun-islem-table";
+import { UrunListeTable } from "./urun-liste-table";
+import { UrunRaporOzet } from "./urun-rapor-ozet";
+import {
+  buildAylikSatisTrend,
+  buildUrunListeRows,
+  buildUrunRaporTotals,
+} from "./urun-rapor-rows";
+import {
+  buildUrunAlimRows,
+  buildUrunGiderRows,
+  buildUrunSatisRows,
+} from "./urun-islem-rows";
+import { UrunSecici } from "./urun-secici";
 
 export const dynamic = "force-dynamic";
 
 export default async function UrunRaporPage({
   searchParams,
 }: {
-  searchParams: Promise<{ urun?: string }>;
+  searchParams: Promise<{ urun?: string; liste?: string }>;
 }) {
   const sp = await searchParams;
-  const urunAdi = sp.urun;
-  const [rapor, urunler] = await Promise.all([
-    getProductReport(urunAdi),
-    getProducts(),
-  ]);
+  const urunAdi = sp.urun?.trim() || "";
+  const listeMod = sp.liste === "1";
+  const urunler = await getProducts();
+  const urunAdlari = urunler.map((u) => u.name);
 
-  const aylikMap = new Map<string, number>();
-  for (const satis of rapor.sales) {
-    const d = new Date(satis.date);
-    const ay = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    aylikMap.set(ay, (aylikMap.get(ay) ?? 0) + satis.vatIncludedAmount);
+  if (!urunAdi && !listeMod && urunler.length > 0) {
+    redirect(`/raporlar/urun?urun=${encodeURIComponent(urunler[0].name)}`);
   }
-  const aylikSeri = [...aylikMap.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([label, value]) => ({ label, value }));
+
+  const [raporGenel, raporUrun, musteriler, suppliers, serviceProviders, genelGiderler, urunGiderleri] =
+    await Promise.all([
+      getProductReport(),
+      urunAdi ? getProductReport(urunAdi) : Promise.resolve(null),
+      getPartners(),
+      getPartners("SUPPLIER"),
+      getPartners("SERVICE_PROVIDER"),
+      getExpenseCategories("GENERAL"),
+      getExpenseCategories("PRODUCT"),
+    ]);
+
+  const musteriAdlari = musteriler.map((p) => p.name);
+  const tedarikciAdlari = [...suppliers, ...serviceProviders]
+    .map((p) => p.name)
+    .sort((a, b) => a.localeCompare(b, "tr"));
+
+  const detayMod = Boolean(urunAdi) && !listeMod;
+  const rapor = detayMod && raporUrun ? raporUrun : raporGenel;
+  const totals = buildUrunRaporTotals(rapor);
+  const aylikTrend = buildAylikSatisTrend(rapor.sales);
+  const listeRows = buildUrunListeRows(urunler, raporGenel);
+  const satisRows = detayMod ? buildUrunSatisRows(rapor.sales) : [];
+  const alimRows = detayMod ? buildUrunAlimRows(rapor.purchases) : [];
+  const giderRows = detayMod ? buildUrunGiderRows(rapor.expenses) : [];
 
   return (
-    <PageShell title="Ürün Raporu">
-      <Card><CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div>
-          <p className="text-sm text-[var(--muted-foreground)]">Ürün Satış Tutarı (KDV Hariç)</p>
-          <p className="text-xl font-semibold">{formatCurrency(rapor.saleAmount)}</p>
-        </div>
-        <div>
-          <p className="text-sm text-[var(--muted-foreground)]">Ürün Alım Tutarı</p>
-          <p className="text-xl font-semibold">{formatCurrency(rapor.purchaseAmount)}</p>
-        </div>
-        <div>
-          <p className="text-sm text-[var(--muted-foreground)]">Kâr</p>
-          <p className="text-xl font-semibold">{formatCurrency(rapor.profit)}</p>
-        </div>
-      </CardContent></Card>
-      {urunAdi && aylikSeri.length > 0 && (
-        <Card><CardContent>
-          <h3 className="mb-4 font-semibold">Aylık Satış Trendi (KDV Dahil)</h3>
-          <TrendLineChart data={aylikSeri} />
-        </CardContent></Card>
+    <PageShell
+      title="Ürün Raporu"
+      description='Excel "Ürün Raporu" sayfası — satış, alım, ürün giderleri ve kâr/zarar'
+    >
+      <Card className="overflow-hidden border-[var(--border)] bg-gradient-to-r from-[var(--accent)]/40 via-white to-[var(--primary)]/[0.06] shadow-sm">
+        <CardContent className="flex flex-wrap items-start justify-between gap-3 py-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[var(--primary)] shadow-sm ring-1 ring-[var(--border)]">
+              <BarChart2 className="h-5 w-5" />
+            </div>
+            <div className="text-sm leading-relaxed text-[var(--muted-foreground)]">
+              <p>
+                Excel&apos;deki gibi: <strong className="text-[var(--foreground)]">satış</strong> −{" "}
+                <strong className="text-[var(--foreground)]">alım</strong> −{" "}
+                <strong className="text-[var(--foreground)]">diğer maliyetler</strong> = kâr/zarar.
+                Ürün seçerek satış detayına inebilirsiniz.
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Link
+              href="/raporlar/stok"
+              className="rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-xs font-medium text-[var(--primary)] shadow-sm transition-colors hover:bg-[var(--accent)]"
+            >
+              Stok raporu →
+            </Link>
+            <Link
+              href="/urun-satis"
+              className="rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-xs font-medium text-[var(--primary)] shadow-sm transition-colors hover:bg-[var(--accent)]"
+            >
+              Satış girişi →
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+
+      {urunler.length > 0 ? (
+        <UrunSecici products={urunler.map((u) => u.name)} selected={urunAdi} listeMod={listeMod} />
+      ) : (
+        <Card className="border-amber-100 bg-amber-50/50">
+          <CardContent className="py-5 text-sm text-amber-900">
+            Henüz tanımlı ürün yok. Önce Tanımlama bölümünden ürün ekleyin.
+          </CardContent>
+        </Card>
       )}
-      {!urunAdi && (
-        <DataTable rows={urunler.map((u) => ({ ad: u.name }))} searchKeys={["ad"]} searchPlaceholder="Ürün ara…" defaultSort={{ key: "ad", asc: true }} columns={[
-          { key: "ad", label: "Ürün (detay için URL'ye ?urun= eklenebilir)" },
-        ]} />
+
+      <UrunRaporOzet
+        productName={detayMod ? urunAdi : undefined}
+        totals={totals}
+        aylikTrend={detayMod ? aylikTrend : []}
+        allProducts={!detayMod}
+      />
+
+      {detayMod ? (
+        <div className="space-y-6">
+          <div>
+            <div className="mb-3">
+              <h2 className="text-base font-semibold tracking-tight">Satış Bilgileri</h2>
+              <p className="text-sm text-[var(--muted-foreground)]">
+                Excel ile aynı kolonlar: gün, ay, yıl, müşteri, tutarlar, raf, notlar ve maliyetler
+              </p>
+            </div>
+            <UrunSatisTable rows={satisRows} urunler={urunAdlari} musteriler={musteriAdlari} />
+          </div>
+          <div>
+            <div className="mb-3">
+              <h2 className="text-base font-semibold tracking-tight">Alım Hareketleri</h2>
+              <p className="text-sm text-[var(--muted-foreground)]">
+                Tarih, tedarikçi, raf ve tutar kolonları
+              </p>
+            </div>
+            <UrunAlimTable rows={alimRows} urunler={urunAdlari} tedarikciler={tedarikciAdlari} />
+          </div>
+          <div>
+            <div className="mb-3">
+              <h2 className="text-base font-semibold tracking-tight">Diğer Maliyetler</h2>
+              <p className="text-sm text-[var(--muted-foreground)]">
+                Gider girişi kolonları: gün, ay, yıl, tür, periyot, fatura ve tarihler
+              </p>
+            </div>
+            <UrunGiderTable
+              rows={giderRows}
+              genelGiderTurleri={genelGiderler.map((c) => c.name)}
+              urunGiderTurleri={urunGiderleri.map((c) => c.name)}
+              urunler={urunAdlari}
+              tedarikciler={tedarikciAdlari}
+            />
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div className="mb-3">
+            <h2 className="text-base font-semibold tracking-tight">Tüm Ürünler</h2>
+            <p className="text-sm text-[var(--muted-foreground)]">
+              Ürün bazında satış, alım ve kâr özeti — detay için ürün seçin
+            </p>
+          </div>
+          <UrunListeTable rows={listeRows} />
+        </div>
       )}
     </PageShell>
   );

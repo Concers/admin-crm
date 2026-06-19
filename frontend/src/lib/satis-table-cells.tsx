@@ -197,6 +197,8 @@ export const SATIS_SEARCH_KEYS = [
   "yil",
 ] as const;
 
+export const SATIS_PRIMARY_FILTER_KEYS = ["yil", "ay", "urunAdi", "musteri", "raf"] as const;
+
 export const SATIS_AMOUNT_FILTER = {
   defaultField: "toplam",
   fields: [

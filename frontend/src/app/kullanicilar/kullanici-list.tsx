@@ -1,6 +1,7 @@
 "use client";
 
 import { DataTable } from "@/components/data-table";
+import { KULLANICI_PRIMARY_FILTER_KEYS } from "@/lib/table-primary-filters";
 import { DeleteButton } from "./delete-button";
 
 type Row = { id: number; ad: string; eposta: string; rol: string; durum: string };
@@ -11,6 +12,7 @@ export function KullaniciList({ rows }: { rows: Row[] }) {
       rows={rows}
       searchKeys={["ad", "eposta", "rol"]}
       searchPlaceholder="Ad, e-posta veya rol ara…"
+      filterKeys={[...KULLANICI_PRIMARY_FILTER_KEYS]}
       defaultSort={{ key: "ad", asc: true }}
       columns={[
         { key: "ad", label: "Ad" },
