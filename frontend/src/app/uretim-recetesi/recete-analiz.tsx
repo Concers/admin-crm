@@ -38,8 +38,11 @@ import {
 import { cn } from "@/lib/utils";
 import type { ReceteAnaliz, RecipeAnalysis, ComponentUsage } from "./analiz-data";
 
-// Canlı ama uyumlu palet (referans dashboard tonları).
-const PALETTE = ["#3b82f6", "#22c55e", "#f59e0b", "#14b8a6", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899"];
+// Marka paleti — globals.css token'larından (primary, plum, dusty pink,
+// açık mavi, charcoal, success). Tüm grafik/aksan renkleri buradan gelir.
+const PALETTE = ["#996888", "#c99da3", "#5e4955", "#c6ddf0", "#059669", "#2a2b2a"];
+// KPI/mini-stat aksanları — okunabilir (koyu) marka tonları.
+const ACCENTS = ["#996888", "#5e4955", "#059669", "#c99da3"];
 
 const tlFull = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 });
 const tlFine = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 2 });
@@ -49,7 +52,7 @@ const moneyFine = (v: number) => tlFine.format(v);
 const qty = (v: number) => numFmt.format(v);
 
 const tooltipStyle = {
-  backgroundColor: "#fff",
+  backgroundColor: "var(--card)",
   border: "1px solid var(--border)",
   borderRadius: 10,
   fontSize: 12,
@@ -89,28 +92,28 @@ export function ReceteAnalizPano({ analiz }: { analiz: ReceteAnaliz }) {
           label="Toplam Birim Maliyet"
           value={money(totals.totalUnitCost)}
           sub={`${totals.recipeCount} reçete · ${totals.activeCount} aktif`}
-          color="#3b82f6"
+          color={ACCENTS[0]}
           series={recipes.map((r) => r.unitCost)}
         />
         <KpiCard
           label="Ort. Reçete Maliyeti"
           value={money(totals.avgUnitCost)}
           sub="birim mamul başına"
-          color="#22c55e"
+          color={ACCENTS[1]}
           series={recipes.map((r) => r.unitCost)}
         />
         <KpiCard
           label="Fiili Tüketim Maliyeti"
           value={money(totals.totalConsumedCost)}
           sub="tamamlanan üretimden"
-          color="#f59e0b"
+          color={ACCENTS[2]}
           series={recipes.map((r) => r.producedCost)}
         />
         <KpiCard
           label="Planlanan Tüketim"
           value={money(totals.totalPlannedCost)}
           sub="planlı + süren emirler"
-          color="#14b8a6"
+          color={ACCENTS[3]}
           series={recipes.map((r) => r.plannedCost)}
         />
       </div>
@@ -139,7 +142,7 @@ export function ReceteAnalizPano({ analiz }: { analiz: ReceteAnaliz }) {
         {selectedRecipe && (
           <>
             <ChevronRight className="h-4 w-4 text-[var(--muted-foreground)]" />
-            <span className="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700 ring-1 ring-blue-100">
+            <span className="rounded-full bg-[var(--accent)] px-3 py-1 font-medium text-[var(--primary)] ring-1 ring-[var(--border)]">
               {selectedRecipe.mamul}
             </span>
           </>
@@ -147,7 +150,7 @@ export function ReceteAnalizPano({ analiz }: { analiz: ReceteAnaliz }) {
         {selectedComponent && (
           <>
             <ChevronRight className="h-4 w-4 text-[var(--muted-foreground)]" />
-            <span className="rounded-full bg-violet-50 px-3 py-1 font-medium text-violet-700 ring-1 ring-violet-100">
+            <span className="rounded-full bg-[var(--muted)] px-3 py-1 font-medium text-[var(--muted-foreground)] ring-1 ring-[var(--border)]">
               {selectedComponent.name}
             </span>
           </>
@@ -413,10 +416,10 @@ function RecipeDetail({
   return (
     <>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <MiniStat label="Birim Maliyet" value={moneyFine(recipe.unitCost)} sub={`mamul: ${recipe.mamul}`} icon={Coins} color="#3b82f6" />
-        <MiniStat label="Bileşen Sayısı" value={String(recipe.componentCount)} sub={recipe.isActive ? "aktif" : "pasif"} icon={Layers} color="#8b5cf6" />
-        <MiniStat label="Üretilen Mamul" value={qty(recipe.producedQty)} sub={`planlı: ${qty(recipe.plannedQty)}`} icon={Factory} color="#f59e0b" />
-        <MiniStat label="Fiili Tüketim Maliyeti" value={money(recipe.producedCost)} sub="tamamlanan üretim" icon={Boxes} color="#22c55e" />
+        <MiniStat label="Birim Maliyet" value={moneyFine(recipe.unitCost)} sub={`mamul: ${recipe.mamul}`} icon={Coins} color={ACCENTS[0]} />
+        <MiniStat label="Bileşen Sayısı" value={String(recipe.componentCount)} sub={recipe.isActive ? "aktif" : "pasif"} icon={Layers} color={ACCENTS[1]} />
+        <MiniStat label="Üretilen Mamul" value={qty(recipe.producedQty)} sub={`planlı: ${qty(recipe.plannedQty)}`} icon={Factory} color={ACCENTS[3]} />
+        <MiniStat label="Fiili Tüketim Maliyeti" value={money(recipe.producedCost)} sub="tamamlanan üretim" icon={Boxes} color={ACCENTS[2]} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -509,10 +512,10 @@ function ComponentDetail({
   return (
     <>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <MiniStat label="Birim Maliyet" value={moneyFine(comp.unitCost)} sub="ağırlıklı ort. alım" icon={Coins} color="#3b82f6" />
-        <MiniStat label="Kullanıldığı Reçete" value={String(comp.usedInRecipes)} sub="ürün sayısı" icon={Package} color="#8b5cf6" />
-        <MiniStat label="Fiili Tüketim" value={qty(comp.consumedQty)} sub={`planlı: ${qty(comp.plannedQty)}`} icon={Factory} color="#f59e0b" />
-        <MiniStat label="Tüketim Maliyeti" value={money(comp.consumedCost)} sub="tamamlanan üretim" icon={Boxes} color="#22c55e" />
+        <MiniStat label="Birim Maliyet" value={moneyFine(comp.unitCost)} sub="ağırlıklı ort. alım" icon={Coins} color={ACCENTS[0]} />
+        <MiniStat label="Kullanıldığı Reçete" value={String(comp.usedInRecipes)} sub="ürün sayısı" icon={Package} color={ACCENTS[1]} />
+        <MiniStat label="Fiili Tüketim" value={qty(comp.consumedQty)} sub={`planlı: ${qty(comp.plannedQty)}`} icon={Factory} color={ACCENTS[3]} />
+        <MiniStat label="Tüketim Maliyeti" value={money(comp.consumedCost)} sub="tamamlanan üretim" icon={Boxes} color={ACCENTS[2]} />
       </div>
 
       <Panel
@@ -547,7 +550,7 @@ function ComponentDetail({
                 >
                   <td className="py-2.5 pr-3">
                     <span className="flex items-center gap-2">
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 ring-1 ring-blue-100">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)] text-[var(--primary)] ring-1 ring-[var(--border)]">
                         <Package className="h-3.5 w-3.5" />
                       </span>
                       <span className="min-w-0">
