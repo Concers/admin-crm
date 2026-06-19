@@ -53,3 +53,5 @@ next-env.d.ts
 *.db
 *.db-journal
 _backup/
+.playwright-mcp/
+urun-raf-select.png

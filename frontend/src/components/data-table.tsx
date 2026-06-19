@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TableToolbar, type TableToolbarFilter } from "@/components/table-toolbar";
+import { DataTableToolbar, type ToolbarSelect } from "@/components/data-table-toolbar";
 import { isFilterActive, type ColFilter, type FacetColumn } from "@/components/table-faceted-filters";
 import { resolvePrimaryFilterKeys } from "@/lib/table-filter-keys";
 import { uniqueStrings } from "@/lib/utils";
@@ -303,14 +303,95 @@ export function DataTable<T extends Record<string, unknown>>({
     return m;
   }, [filterableColumns]);
 
-  // Rows constrained only by the text search — faceted option counts reflect this set.
-  const searchFiltered = useMemo(() => {
-    const q = query.toLowerCase().trim();
-    if (!q || !searchKeys?.length) return rows;
-    return rows.filter((row) => searchKeys.some((k) => String(row[k] ?? "").toLowerCase().includes(q)));
-  }, [rows, query, searchKeys]);
+  // --- Faceted (cascading / bağlı) filtreleme -----------------------------
+  // Her aktif filtreyi, sahibi olan anahtarla etiketli bir yükleme (predicate)
+  // hâline getiririz. Bir filtrenin seçenekleri hesaplanırken KENDİ yüklemesi
+  // hariç tutulur; böylece bir filtrede değer seçilince diğer filtreler yalnızca
+  // kalan satırlarda gerçekten bulunan değerleri listeler.
+  const amountFieldDef =
+    amountFilter?.fields.find((f) => f.id === amountField) ?? amountFilter?.fields[0];
+  const minAmount = parseAmountInput(amountMin);
+  const maxAmount = parseAmountInput(amountMax);
+  const hasAmountFilter = minAmount != null || maxAmount != null;
 
-  // Faceted filter columns (multi-select category w/ counts, or numeric range).
+  const predicates = useMemo(() => {
+    const list: { key: string; test: (row: T) => boolean }[] = [];
+    const q = query.toLowerCase().trim();
+    if (q && searchKeys?.length) {
+      list.push({
+        key: "__search__",
+        test: (row) => searchKeys.some((k) => String(row[k] ?? "").toLowerCase().includes(q)),
+      });
+    }
+    if (filters?.length) {
+      for (const f of filters) {
+        const val = filterValues[f.key];
+        if (!val) continue;
+        list.push({
+          key: f.key,
+          test: (row) => (f.getValue ? f.getValue(row) : String(row[f.key] ?? "")).trim() === val,
+        });
+      }
+    }
+    if (columnFilters) {
+      for (const [key, filter] of Object.entries(columnFilterValues)) {
+        if (!isFilterActive(filter)) continue;
+        const col = colByKey.get(key);
+        if (!col) continue;
+        if (filter.type === "category") {
+          const set = new Set(filter.values);
+          list.push({ key, test: (row) => set.has(getColumnFilterValue(row, col)) });
+        } else {
+          const min = parseAmountInput(filter.min);
+          const max = parseAmountInput(filter.max);
+          list.push({
+            key,
+            test: (row) => {
+              const v = getColumnNumber(row, col);
+              if (v == null) return false;
+              if (min != null && v < min) return false;
+              if (max != null && v > max) return false;
+              return true;
+            },
+          });
+        }
+      }
+    }
+    if (hasAmountFilter && amountFieldDef) {
+      list.push({
+        key: "__amount__",
+        test: (row) => {
+          const val = amountFieldDef.getValue(row);
+          if (minAmount != null && val < minAmount) return false;
+          if (maxAmount != null && val > maxAmount) return false;
+          return true;
+        },
+      });
+    }
+    return list;
+  }, [
+    query,
+    searchKeys,
+    filters,
+    filterValues,
+    columnFilters,
+    columnFilterValues,
+    colByKey,
+    hasAmountFilter,
+    amountFieldDef,
+    minAmount,
+    maxAmount,
+  ]);
+
+  // Tüm yüklemeleri uygular; excludeKey verilirse o anahtara ait yükleme atlanır.
+  const applyExcept = useCallback(
+    (excludeKey: string | null) =>
+      rows.filter((row) => predicates.every((p) => (p.key === excludeKey ? true : p.test(row)))),
+    [rows, predicates],
+  );
+
+  // Faceted filter columns — her kolonun seçenekleri kendi filtresi hariç diğer
+  // tüm aktif filtreler uygulanmış satır kümesinden türetilir.
   const facetColumns = useMemo<FacetColumn[]>(() => {
     if (!columnFilters) return [];
     return filterableColumns.map((col) => {
@@ -318,7 +399,7 @@ export function DataTable<T extends Record<string, unknown>>({
         return { key: col.key, label: col.label, type: "number" as const };
       }
       const counts = new Map<string, number>();
-      for (const r of searchFiltered) {
+      for (const r of applyExcept(col.key)) {
         const v = getColumnFilterValue(r, col);
         if (!v || v === "—" || v === "-") continue;
         counts.set(v, (counts.get(v) ?? 0) + 1);
@@ -331,25 +412,24 @@ export function DataTable<T extends Record<string, unknown>>({
         );
       return { key: col.key, label: col.label, type: "category" as const, options };
     });
-  }, [columnFilters, filterableColumns, searchFiltered]);
+  }, [columnFilters, filterableColumns, applyExcept]);
 
   const sortableColumns = useMemo(
     () => columns.filter((c) => !c.hidden && c.sortable !== false && c.key !== "id" && c.key !== "sil"),
     [columns]
   );
 
+  // Özel filtre seçenekleri de faceted: her filtrenin listesi diğer aktif
+  // filtreler uygulanmış satırlardan türetilir.
   const filterOptions = useMemo(() => {
     if (!filters?.length) return {};
     const out: Record<string, string[]> = {};
     for (const f of filters) {
-      out[f.key] = buildFilterOptions(rows, f);
+      out[f.key] = buildFilterOptions(applyExcept(f.key), f);
     }
     return out;
-  }, [rows, filters]);
+  }, [filters, applyExcept]);
 
-  const minAmount = parseAmountInput(amountMin);
-  const maxAmount = parseAmountInput(amountMax);
-  const hasAmountFilter = minAmount != null || maxAmount != null;
   const activeColumnFilterCount = Object.values(columnFilterValues).filter(isFilterActive).length;
   const activeFilterCount =
     Object.values(filterValues).filter(Boolean).length +
@@ -358,58 +438,8 @@ export function DataTable<T extends Record<string, unknown>>({
   const hasActiveFilters = Boolean(query.trim() || activeFilterCount > 0);
 
   const filtered = useMemo(() => {
-    const q = query.toLowerCase().trim();
-    let data = rows;
-
-    if (q && searchKeys?.length) {
-      data = data.filter((row) =>
-        searchKeys.some((k) => String(row[k] ?? "").toLowerCase().includes(q))
-      );
-    }
-
-    if (filters?.length) {
-      for (const f of filters) {
-        const val = filterValues[f.key];
-        if (!val) continue;
-        data = data.filter((row) => {
-          const cell = (f.getValue ? f.getValue(row) : String(row[f.key] ?? "")).trim();
-          return cell === val;
-        });
-      }
-    }
-
-    if (columnFilters) {
-      for (const [key, filter] of Object.entries(columnFilterValues)) {
-        if (!isFilterActive(filter)) continue;
-        const col = colByKey.get(key);
-        if (!col) continue;
-        if (filter.type === "category") {
-          const set = new Set(filter.values);
-          data = data.filter((row) => set.has(getColumnFilterValue(row, col)));
-        } else {
-          const min = parseAmountInput(filter.min);
-          const max = parseAmountInput(filter.max);
-          data = data.filter((row) => {
-            const v = getColumnNumber(row, col);
-            if (v == null) return false;
-            if (min != null && v < min) return false;
-            if (max != null && v > max) return false;
-            return true;
-          });
-        }
-      }
-    }
-
-    if (hasAmountFilter && amountFilter?.fields.length) {
-      const field =
-        amountFilter.fields.find((f) => f.id === amountField) ?? amountFilter.fields[0];
-      data = data.filter((row) => {
-        const val = field.getValue(row);
-        if (minAmount != null && val < minAmount) return false;
-        if (maxAmount != null && val > maxAmount) return false;
-        return true;
-      });
-    }
+    // Tüm aktif filtreler (arama + özel + kolon + tutar) predicate motorundan.
+    let data = applyExcept(null);
 
     if (!preserveOrder && sortKey) {
       const col = columns.find((c) => c.key === sortKey);
@@ -423,26 +453,7 @@ export function DataTable<T extends Record<string, unknown>>({
     }
 
     return data;
-  }, [
-    rows,
-    query,
-    searchKeys,
-    filters,
-    filterValues,
-    columnFilters,
-    columnFilterValues,
-    filterableColumns,
-    colByKey,
-    hasAmountFilter,
-    amountFilter,
-    amountField,
-    minAmount,
-    maxAmount,
-    sortKey,
-    asc,
-    preserveOrder,
-    columns,
-  ]);
+  }, [applyExcept, sortKey, asc, preserveOrder, columns]);
 
   function clearFilters() {
     setQuery("");
@@ -473,7 +484,7 @@ export function DataTable<T extends Record<string, unknown>>({
   }, []);
 
   // Inline filter dropdowns: yalnızca önemli sütunlar + özel filtreler.
-  const toolbarSelects: TableToolbarFilter[] = [
+  const toolbarSelects: ToolbarSelect[] = [
     ...(columnFilters
       ? primaryFilterColumns
           .filter((col) => col.filterType !== "number")
@@ -511,29 +522,46 @@ export function DataTable<T extends Record<string, unknown>>({
   return (
     <div className="space-y-3">
       {showToolbar ? (
-        <TableToolbar
+        <DataTableToolbar
           showSearch={Boolean(searchKeys?.length)}
           searchPlaceholder={searchPlaceholder}
           query={query}
           onQueryChange={setQuery}
-          columnFilters={toolbarSelects}
-          amountFields={amountFilter?.fields.map((f) => ({ id: f.id, label: f.label }))}
-          amountField={amountField}
-          onAmountFieldChange={setAmountField}
-          amountMin={amountMin}
-          amountMax={amountMax}
-          onAmountMinChange={setAmountMin}
-          onAmountMaxChange={setAmountMax}
-          sortableColumns={sortableColumns.map((c) => ({ key: c.key, label: c.label }))}
-          sortKey={preserveOrder ? null : sortKey}
-          onSortKeyChange={setSortKey}
-          asc={asc}
-          onAscChange={setAsc}
-          showSort={!preserveOrder && sortableColumns.length > 0}
-          activeFilterCount={activeFilterCount + (query.trim() ? 1 : 0)}
+          selects={toolbarSelects}
+          amount={
+            amountFilter?.fields.length
+              ? {
+                  fields: amountFilter.fields.map((f) => ({ id: f.id, label: f.label })),
+                  field: amountField,
+                  onField: setAmountField,
+                  min: amountMin,
+                  max: amountMax,
+                  onMin: setAmountMin,
+                  onMax: setAmountMax,
+                  active: Boolean(amountMin || amountMax),
+                }
+              : undefined
+          }
+          sort={
+            !preserveOrder && sortableColumns.length > 0
+              ? {
+                  columns: sortableColumns.map((c) => ({ key: c.key, label: c.label })),
+                  sortKey,
+                  asc,
+                  onToggle: (key) => {
+                    if (sortKey === key) setAsc(!asc);
+                    else {
+                      setSortKey(key);
+                      setAsc(true);
+                    }
+                  },
+                  onDir: setAsc,
+                }
+              : undefined
+          }
+          count={filtered.length}
           hasActiveFilters={hasActiveFilters}
           onClear={clearFilters}
-          count={filtered.length}
         />
       ) : null}
 

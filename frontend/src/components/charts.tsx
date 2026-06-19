@@ -20,7 +20,7 @@ import {
 } from "recharts";
 
 // Muted, theme-consistent fixed palette.
-const PALETTE = ["#c99da3", "#996888", "#86a59c", "#c0a35e", "#a5b4fc", "#6ee7b7"];
+const PALETTE = ["#732229", "#8b8c5e", "#401a11", "#b0793f", "#566023", "#a8453c"];
 
 const tl = new Intl.NumberFormat("tr-TR", {
   style: "currency",
@@ -125,6 +125,45 @@ export function ProductBarChart({
           cursor={{ fill: "var(--accent)" }}
         />
         <Bar dataKey="value" fill={barColor} radius={[0, 4, 4, 0]} maxBarSize={28} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+export interface ProductCompareDatum {
+  name: string;
+  satis: number;
+  alim: number;
+  kar: number;
+}
+
+/** Birden fazla ürünü Satış / Alım / Kâr ekseninde karşılaştıran gruplu çubuk grafik. */
+export function ProductCompareChart({ data }: { data: ProductCompareDatum[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={Math.max(320, data.length * 12 + 300)}>
+      <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 8 }} barGap={2} barCategoryGap="22%">
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+        <XAxis
+          dataKey="name"
+          tick={axisStyle}
+          tickLine={false}
+          axisLine={{ stroke: "var(--border)" }}
+          interval={0}
+          height={56}
+          tickFormatter={(v: string) => (v.length > 16 ? `${v.slice(0, 16)}…` : v)}
+        />
+        <YAxis
+          tick={axisStyle}
+          tickLine={false}
+          axisLine={{ stroke: "var(--border)" }}
+          tickFormatter={(v: number) => tl.format(v)}
+          width={80}
+        />
+        <Tooltip contentStyle={tooltipStyle} formatter={tooltipFmt} cursor={{ fill: "var(--accent)" }} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Bar name="Satış" dataKey="satis" fill={PALETTE[0]} radius={[4, 4, 0, 0]} maxBarSize={40} />
+        <Bar name="Alım" dataKey="alim" fill={PALETTE[1]} radius={[4, 4, 0, 0]} maxBarSize={40} />
+        <Bar name="Kâr" dataKey="kar" fill="#566023" radius={[4, 4, 0, 0]} maxBarSize={40} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -319,7 +358,7 @@ export interface AgingBucketDatum {
   value: number;
 }
 
-/** Alacak yaşlandırma — yatay tek satır stacked bar. */
+/** Alacak durumu — yatay tek satır stacked bar. */
 export function AgingStackBar({ data }: { data: AgingBucketDatum[] }) {
   const total = data.reduce((s, d) => s + d.value, 0);
   if (total <= 0) {

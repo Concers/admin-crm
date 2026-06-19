@@ -43,7 +43,7 @@ export function TedarikciEkleForm() {
   );
 }
 
-export function UrunEkleForm() {
+export function UrunEkleForm({ bosRaflar }: { bosRaflar: { code: string; location: string | null }[] }) {
   return (
     <div className="mb-4">
       <AddModalButton
@@ -59,7 +59,19 @@ export function UrunEkleForm() {
         </div>
         <div>
           <Label htmlFor="urun-raf">Hangi Raf</Label>
-          <Input id="urun-raf" name="raf" placeholder="Örn. A-03" />
+          <Select id="urun-raf" name="raf" defaultValue="" disabled={bosRaflar.length === 0}>
+            <option value="">Raf seçilmedi</option>
+            {bosRaflar.map((s) => (
+              <option key={s.code} value={s.code}>
+                {s.location ? `${s.code} — ${s.location}` : s.code}
+              </option>
+            ))}
+          </Select>
+          <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+            {bosRaflar.length === 0
+              ? "Boş raf yok — Raf Takibi ekranından raf tanımlayın."
+              : `${bosRaflar.length} boş raf · yalnızca boş raflar listelenir`}
+          </p>
         </div>
       </AddModalButton>
     </div>

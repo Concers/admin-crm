@@ -118,7 +118,7 @@ export function AgingRaporTable({ rows }: { rows: AgingTableRow[] }) {
         ],
       }}
       emptyText="Açık alacak kaydı bulunamadı"
-      emptyHint="Tahsilat ve satış kayıtları oluştukça yaşlandırma tablosu dolacaktır."
+      emptyHint="Tahsilat ve satış kayıtları oluştukça alacak durumu tablosu dolacaktır."
     />
   );
 }

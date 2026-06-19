@@ -18,13 +18,15 @@ import {
   buildUrunSatisRows,
 } from "./urun-islem-rows";
 import { UrunSecici } from "./urun-secici";
+import { UrunKarsilastirSecici } from "./urun-karsilastir-secici";
+import { UrunKarsilastir } from "./urun-karsilastir";
 
 export const dynamic = "force-dynamic";
 
 export default async function UrunRaporPage({
   searchParams,
 }: {
-  searchParams: Promise<{ urun?: string; liste?: string }>;
+  searchParams: Promise<{ urun?: string; liste?: string; kar?: string }>;
 }) {
   const sp = await searchParams;
   const urunAdi = sp.urun?.trim() || "";
@@ -32,7 +34,19 @@ export default async function UrunRaporPage({
   const urunler = await getProducts();
   const urunAdlari = urunler.map((u) => u.name);
 
-  if (!urunAdi && !listeMod && urunler.length > 0) {
+  // Karşılaştırma modu: ?kar=A,B,C — geçerli ürün adlarına göre süzülür/tekilleştirilir.
+  const validName = new Set(urunAdlari);
+  const karsilastirAdlari = [
+    ...new Set(
+      (sp.kar ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s && validName.has(s)),
+    ),
+  ];
+  const karMod = karsilastirAdlari.length >= 2;
+
+  if (!urunAdi && !listeMod && !karMod && urunler.length > 0) {
     redirect(`/raporlar/urun?urun=${encodeURIComponent(urunler[0].name)}`);
   }
 
@@ -52,11 +66,16 @@ export default async function UrunRaporPage({
     .map((p) => p.name)
     .sort((a, b) => a.localeCompare(b, "tr"));
 
-  const detayMod = Boolean(urunAdi) && !listeMod;
+  const detayMod = Boolean(urunAdi) && !listeMod && !karMod;
   const rapor = detayMod && raporUrun ? raporUrun : raporGenel;
   const totals = buildUrunRaporTotals(rapor);
   const aylikTrend = buildAylikSatisTrend(rapor.sales);
   const listeRows = buildUrunListeRows(urunler, raporGenel);
+  const karsilastirRows = karMod
+    ? karsilastirAdlari
+        .map((ad) => listeRows.find((r) => r.ad === ad))
+        .filter((r): r is (typeof listeRows)[number] => Boolean(r))
+    : [];
   const satisRows = detayMod ? buildUrunSatisRows(rapor.sales) : [];
   const alimRows = detayMod ? buildUrunAlimRows(rapor.purchases) : [];
   const giderRows = detayMod ? buildUrunGiderRows(rapor.expenses) : [];
@@ -99,7 +118,10 @@ export default async function UrunRaporPage({
       </Card>
 
       {urunler.length > 0 ? (
-        <UrunSecici products={urunler.map((u) => u.name)} selected={urunAdi} listeMod={listeMod} />
+        <>
+          <UrunSecici products={urunAdlari} selected={urunAdi} listeMod={listeMod} />
+          <UrunKarsilastirSecici products={urunAdlari} selected={karsilastirAdlari} />
+        </>
       ) : (
         <Card className="border-amber-100 bg-amber-50/50">
           <CardContent className="py-5 text-sm text-amber-900">
@@ -108,14 +130,18 @@ export default async function UrunRaporPage({
         </Card>
       )}
 
-      <UrunRaporOzet
-        productName={detayMod ? urunAdi : undefined}
-        totals={totals}
-        aylikTrend={detayMod ? aylikTrend : []}
-        allProducts={!detayMod}
-      />
+      {karMod ? (
+        <UrunKarsilastir rows={karsilastirRows} />
+      ) : (
+        <>
+          <UrunRaporOzet
+            productName={detayMod ? urunAdi : undefined}
+            totals={totals}
+            aylikTrend={detayMod ? aylikTrend : []}
+            allProducts={!detayMod}
+          />
 
-      {detayMod ? (
+          {detayMod ? (
         <div className="space-y-6">
           <div>
             <div className="mb-3">
@@ -161,6 +187,8 @@ export default async function UrunRaporPage({
           </div>
           <UrunListeTable rows={listeRows} />
         </div>
+          )}
+        </>
       )}
     </PageShell>
   );

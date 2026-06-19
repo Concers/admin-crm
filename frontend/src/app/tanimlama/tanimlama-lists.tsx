@@ -217,18 +217,36 @@ export function TedarikciList({
 }
 
 type UrunRow = { id: number; ad: string; raf: string };
+type RafOpt = { code: string; location: string | null };
 
 export function UrunList({
   rows,
+  raflar,
+  doluRaflar,
   onUpdate,
   onDelete,
 }: {
   rows: UrunRow[];
+  raflar: RafOpt[];
+  doluRaflar: string[];
   onUpdate: (id: number, fd: FormData) => Promise<{ error?: string } | void>;
   onDelete: (id: number) => Promise<{ error?: string } | void>;
 }) {
   const [editing, setEditing] = useState<UrunRow | null>(null);
   const { run, pending } = useActionToast();
+
+  // Düzenlenen ürün için seçilebilir raflar: boş raflar + ürünün mevcut rafı.
+  // Mevcut raf tanımlı listede yoksa (eski serbest metin) yine de korunur.
+  const doluSet = useMemo(() => new Set(doluRaflar), [doluRaflar]);
+  const rafSecenekleri = useMemo<RafOpt[]>(() => {
+    if (!editing) return [];
+    const mevcut = editing.raf.trim();
+    const opts = raflar.filter((s) => !doluSet.has(s.code) || s.code === mevcut);
+    if (mevcut && !opts.some((s) => s.code === mevcut)) {
+      opts.unshift({ code: mevcut, location: null });
+    }
+    return opts;
+  }, [editing, raflar, doluSet]);
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -305,7 +323,17 @@ export function UrunList({
             </div>
             <div>
               <Label htmlFor="edit-urun-raf">Hangi Raf</Label>
-              <Input id="edit-urun-raf" name="raf" defaultValue={editing.raf} placeholder="Örn. A-03" />
+              <Select id="edit-urun-raf" name="raf" defaultValue={editing.raf}>
+                <option value="">Raf seçilmedi</option>
+                {rafSecenekleri.map((s) => (
+                  <option key={s.code} value={s.code}>
+                    {s.location ? `${s.code} — ${s.location}` : s.code}
+                  </option>
+                ))}
+              </Select>
+              <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+                Boş raflar ve ürünün mevcut rafı listelenir; elle giriş yapılmaz.
+              </p>
             </div>
           </FormSection>
         </FormModal>

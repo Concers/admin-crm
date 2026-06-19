@@ -256,7 +256,7 @@ export function DashboardView({ stats }: { stats: DashboardStats }) {
         <div className="xl:col-span-5">
           <DashboardTile
             icon={Users}
-            title="Alacak Yaşlandırma"
+            title="Alacak Durumu"
             description="Vade dağılımı"
             accent="indigo"
             headerExtra={
