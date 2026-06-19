@@ -1,17 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  /* Palet: 2a2b2a · 5e4955 · 996888 · c99da3 · c6ddf0 — açık tema */
-  --background: #f6f5f7;
-  --foreground: #2a2b2a;
+  /* Palet: 732229 · 222613 · 8b8c5e · f2eddf · 401a11 — toprak tonu, açık tema.
+     Açık tonlar (muted/border/accent/muted-foreground) bu beş renkten türetildi. */
+  --background: #f2eddf; /* krem */
+  --foreground: #222613; /* koyu zeytin-siyah (metin) */
   --card: #ffffff;
-  --muted: #f0eef2;
-  --muted-foreground: #5e4955;
-  --border: #e5e1e8;
-  --primary: #996888;
-  --primary-foreground: #ffffff;
-  --accent: #ece8f4;
-  --ring: #996888;
+  --muted: #ece4d2; /* krem tint (türetilmiş) */
+  --muted-foreground: #6f5b46; /* sıcak kahve-gri, okunabilir (türetilmiş) */
+  --border: #ddd2bb; /* sıcak kenarlık (türetilmiş) */
+  --primary: #732229; /* bordo (marka) */
+  --primary-foreground: #f2eddf; /* bordo üzeri krem */
+  --accent: #e6e3cf; /* açık zeytin-krem (türetilmiş) */
+  --ring: #732229;
   --success: #059669;
   --danger: #dc2626;
   --radius: 0.75rem;
@@ -238,9 +239,9 @@ body {
 .dashboard-hero {
   background: linear-gradient(
     135deg,
-    #2a2b2a 0%,
-    #3d3540 42%,
-    #5e4955 100%
+    #222613 0%,
+    #401a11 45%,
+    #732229 100%
   );
 }
 

@@ -38,11 +38,11 @@ import {
 import { cn } from "@/lib/utils";
 import type { ReceteAnaliz, RecipeAnalysis, ComponentUsage } from "./analiz-data";
 
-// Marka paleti — globals.css token'larından (primary, plum, dusty pink,
-// açık mavi, charcoal, success). Tüm grafik/aksan renkleri buradan gelir.
-const PALETTE = ["#996888", "#c99da3", "#5e4955", "#c6ddf0", "#059669", "#2a2b2a"];
+// Marka paleti — globals.css toprak tonlarından (bordo, haki, kahve + türetilen
+// toprak tonları). Tüm grafik/aksan renkleri buradan gelir.
+const PALETTE = ["#732229", "#8b8c5e", "#401a11", "#b0793f", "#566023", "#a8453c"];
 // KPI/mini-stat aksanları — okunabilir (koyu) marka tonları.
-const ACCENTS = ["#996888", "#5e4955", "#059669", "#c99da3"];
+const ACCENTS = ["#732229", "#401a11", "#566023", "#8b8c5e"];
 
 const tlFull = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 });
 const tlFine = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 2 });
