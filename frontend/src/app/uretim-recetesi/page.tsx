@@ -1,18 +1,26 @@
 import { PageShell } from "@/components/page-shell";
 import { StatCard, PanelCard } from "@/components/ui/stat-card";
-import { CheckCircle2, ClipboardList, Layers, Package } from "lucide-react";
-import { getBoms, getProducts } from "@/lib/api";
+import { BarChart3, CheckCircle2, ClipboardList, Layers, Package } from "lucide-react";
+import { getBoms, getProducts, getPurchases, getProductionOrders } from "@/lib/api";
 import { ReceteWorkspace } from "./recete-workspace";
 import { mapReceteRows } from "./recete-rows";
+import { buildReceteAnaliz } from "./analiz-data";
+import { ReceteAnalizPano } from "./recete-analiz";
 
 export const dynamic = "force-dynamic";
 
 export default async function UretimRecetesiPage() {
-  const [boms, products] = await Promise.all([getBoms(), getProducts()]);
+  const [boms, products, purchases, orders] = await Promise.all([
+    getBoms(),
+    getProducts(),
+    getPurchases(),
+    getProductionOrders(),
+  ]);
 
   const productName = new Map(products.map((p) => [p.id, p.name]));
   const productOpts = products.map((p) => ({ id: p.id, name: p.name }));
   const rows = mapReceteRows(boms, productName);
+  const analiz = buildReceteAnaliz(boms, products, purchases, orders);
 
   const ozet = {
     kayit: boms.length,
@@ -61,6 +69,15 @@ export default async function UretimRecetesiPage() {
         accent="emerald"
       >
         <ReceteWorkspace rows={rows} products={productOpts} />
+      </PanelCard>
+
+      <PanelCard
+        icon={BarChart3}
+        title="Maliyet & Tüketim Analizi"
+        description=""
+        accent="blue"
+      >
+        <ReceteAnalizPano analiz={analiz} />
       </PanelCard>
     </PageShell>
   );
