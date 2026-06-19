@@ -65,7 +65,7 @@ export function buildSteps(role: UserRole | null): TourStepDef[] {
     {
       id: "nav-raporlar",
       title: "Raporlar & Analizler",
-      text: "Gelir-gider, KDV, alacak yaşlandırma, ABC analizi ve kârlılık gibi raporlar burada. Veriler girildikçe raporlar otomatik dolar.",
+      text: "Gelir-gider, KDV, alacak durumu, ABC analizi ve kârlılık gibi raporlar burada. Veriler girildikçe raporlar otomatik dolar.",
       attach: "nav-raporlar",
       on: "right",
     },

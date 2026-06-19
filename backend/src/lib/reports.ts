@@ -584,7 +584,7 @@ export async function getProductReport(name?: string) {
 // =============================================================================
 
 /**
- * Receivable aging (alacak yaşlandırma). For each customer, collections are
+ * Receivable aging (alacak durumu). For each customer, collections are
  * applied FIFO against the oldest sales; the remaining unpaid amount of each
  * sale is bucketed by its age relative to `asOf` (default: now).
  */
