@@ -34,9 +34,7 @@ yarn-error.log*
 .env*
 !**/.env.example
 
-# local Excel source data (import locally with npm run import:kadim)
-*.xlsx
-*.xls
+
 
 # vercel
 .vercel
