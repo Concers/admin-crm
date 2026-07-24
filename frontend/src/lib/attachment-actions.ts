@@ -14,6 +14,7 @@ export async function addAttachment(formData: FormData) {
   const url = String(formData.get("url") ?? "").trim();
   const mimeType = String(formData.get("mimeType") ?? "").trim();
   const sizeRaw = String(formData.get("size") ?? "").trim();
+  const category = String(formData.get("category") ?? "").trim();
 
   if (!entityName || !entityId || !fileName || !url) {
     return { error: "Dosya adı ve bağlantı zorunludur." };
@@ -25,6 +26,7 @@ export async function addAttachment(formData: FormData) {
       entityId,
       fileName,
       url,
+      ...(category ? { category } : {}),
       ...(mimeType ? { mimeType } : {}),
       ...(sizeRaw ? { size: Number(sizeRaw) } : {}),
     });

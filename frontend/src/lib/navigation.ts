@@ -40,6 +40,8 @@ const giris: NavItem[] = [
   { href: "/musteri-tahsilat", label: "Müşteri Tahsilat", icon: Wallet, roles: ["ADMIN", "SALES_REP"] },
   { href: "/kasa-banka", label: "Kasa / Banka", icon: Wallet, roles: ["ADMIN"] },
   { href: "/finans/cek-senet", label: "Çek / Senet", icon: Banknote, roles: ["ADMIN"] },
+  { href: "/urun-detay", label: "Ürün Detay", icon: PackageSearch, roles: ["ADMIN", "WAREHOUSE_MANAGER"] },
+  { href: "/materyal", label: "Materyal Detay", icon: Boxes, roles: ["ADMIN", "WAREHOUSE_MANAGER"] },
   { href: "/yeni-urun-takip", label: "Yeni Ürün Takip", icon: PackageSearch, roles: ["ADMIN", "WAREHOUSE_MANAGER"] },
 ];
 

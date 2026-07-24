@@ -64,7 +64,7 @@ export default async function GiderRaporPage({
     <PageShell
       title="Gider Raporu"
       description="Excel Gider Girişi sütunlarıyla uyumlu gider özeti ve detay listesi"
-      actions={<ExportButton type="expenses" label="CSV İndir" />}
+      actions={<ExportButton type="expenses" />}
     >
       <GiderDonemFilter ay={ay} yil={yil} years={years} />
 

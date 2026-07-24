@@ -88,6 +88,8 @@ model Partner {
   cashFlows           CashFlow[]
   contacts            Contact[]
   paymentInstruments  PaymentInstrument[]
+  productLinks        ProductPartnerLink[]
+  materialLinks       MaterialPartnerLink[]
 
   @@index([type])
 }
@@ -117,8 +119,32 @@ model Product {
   unit          String   @default("adet") // ölçü birimi (adet, kg, lt…)
   minStock      Float? // minimum stok / yeniden sipariş seviyesi
   isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+
+  // --- Ürün Detay (ürün kartı) — regülasyon & botanik künyesi -----------------
+  productCode      String? // ürün kodu (barkoddan ayrı iç kod)
+  sectors          String? // ürün sektörü, çoklu (CSV: GIDA,KOZMETIK,TICARI,TEG)
+  gtipCode         String? // GTİP kodu
+  hsCode           String? // HS kodu
+  unCode           String? // UN kodu
+  botanicalName    String? // botanik adı
+  englishName      String? // İngilizce adı
+  casNo            String? // CAS No
+  inciNo           String? // INCI No
+  origin           String? // menşei
+  chemotype        String? // kemotip
+  genotype         String? // genotip
+  variety          String? // varyete
+  geoPopulation    String? // coğrafi popülasyon
+  plantPart        String? // bitkinin hangi bölümü
+  productionMethod String? // üretim şekli
+  der              String? // DER
+  history          String? // tarihçe
+  usageAreas       String? // kullanım alanları (sektörel; CSV/serbest)
+  description      String? // açıklamalar
+  isBfm            Boolean @default(false) // BFM ÜRÜN (çok bileşenli satış ürünü)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   purchases      Purchase[]
   sales          Sale[]
@@ -126,9 +152,120 @@ model Product {
   developments   ProductDevelopment[]
   stockMovements StockMovement[]
   costHistory    ProductCostHistory[]
+  links          ProductLink[]
+  partnerLinks   ProductPartnerLink[]
 
   @@index([category])
   @@index([barcode])
+}
+
+/// Ürün karti içerik bağlantısı — bilimsel makale / blog / instagram.
+enum ProductLinkKind {
+  ARTICLE // bilimsel makale
+  BLOG // blog yazısı
+  INSTAGRAM // instagram içeriği
+}
+
+model ProductLink {
+  id        Int             @id @default(autoincrement())
+  productId Int
+  kind      ProductLinkKind
+  title     String // başlık / ayırt edici not
+  url       String? // link
+  note      String? // kişisel not
+  createdAt DateTime        @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+/// Ürün ↔ cari ilişkisi: mevcut/potansiyel tedarikçi veya düzenli müşteri.
+enum ProductPartnerRole {
+  SUPPLIER // satın aldığımız tedarikçi
+  POTENTIAL_SUPPLIER // satın almadığımız ama alabileceğimiz potansiyel tedarikçi
+  CUSTOMER // bu ürünü düzenli alan müşteri (B2B/B2C)
+}
+
+model ProductPartnerLink {
+  id        Int                @id @default(autoincrement())
+  productId Int
+  partnerId Int
+  role      ProductPartnerRole
+  note      String?
+  createdAt DateTime           @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  partner Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, partnerId, role])
+  @@index([productId])
+  @@index([partnerId])
+}
+
+// -----------------------------------------------------------------------------
+// Materyal Detay — ambalaj / etiket / sticker / diğer materyaller.
+// Hem kendi markamız (OWN) hem B2B satılacak ürünlerin künyesi.
+// -----------------------------------------------------------------------------
+
+/// Materyal kartı — ör. "Doypack 500ml Kraft", "Şişe 100ml Amber".
+model Material {
+  id         Int      @id @default(autoincrement())
+  name       String // kart adı
+  category   String // AMBALAJ / ETIKET / STICKER / DIGER
+  subType    String? // Doypack, Şişe, Tüp, Kartuş, Şase, Kutu, Poşet… (serbest)
+  scope      String   @default("OWN") // OWN (kendi markamız) / B2B / BOTH
+  model      String?
+  color      String? // renk
+  size       String? // ölçü
+  material   String? // malzemesi
+  unitPrice  Float? // birim fiyat
+  currency   String   @default("TRY")
+  usageAreas String? // kullanım alanları
+  notes      String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  partnerLinks MaterialPartnerLink[]
+  priceBreaks  MaterialPriceBreak[]
+
+  @@index([category])
+  @@index([subType])
+}
+
+enum MaterialPartnerRole {
+  SUPPLIER // tedarikçi
+  CUSTOMER // müşteri (B2B)
+}
+
+model MaterialPartnerLink {
+  id         Int                 @id @default(autoincrement())
+  materialId Int
+  partnerId  Int
+  role       MaterialPartnerRole
+  note       String?
+  createdAt  DateTime            @default(now())
+
+  material Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  partner  Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([materialId, partnerId, role])
+  @@index([materialId])
+  @@index([partnerId])
+}
+
+/// Kademeli fiyat — "X adet fiyatı" (minQty adet alımda birim/paket fiyatı).
+model MaterialPriceBreak {
+  id         Int      @id @default(autoincrement())
+  materialId Int
+  minQty     Float // X adet
+  price      Float // o adetteki fiyat
+  createdAt  DateTime @default(now())
+
+  material Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@index([materialId])
 }
 
 /// Lookup of expense category names defined in TANIMLAMA, scoped to general
@@ -686,8 +823,9 @@ model Discount {
 /// Dosya eki (polimorfik: herhangi bir kayda iliştirilir).
 model Attachment {
   id         Int      @id @default(autoincrement())
-  entityName String // Invoice, Order, Partner…
+  entityName String // Invoice, Order, Partner, Product…
   entityId   Int
+  category   String? // ürün kartında: ANALIZ / SERTIFIKA / GORSEL / ETIKET
   fileName   String
   url        String
   mimeType   String?

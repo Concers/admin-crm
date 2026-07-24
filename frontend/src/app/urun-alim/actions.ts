@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createPurchase, deletePurchase, updatePurchase } from "@/lib/api";
+import { createPurchase, deletePurchase, getProducts, updatePurchase } from "@/lib/api";
 import { friendlyApiError } from "@/lib/action-errors";
 import { dateInputToApi } from "@/lib/dates";
 
@@ -31,7 +31,9 @@ function purchasePayload(formData: FormData, date: string) {
   };
 }
 
-export async function createAlim(formData: FormData): Promise<void | { error?: string }> {
+export async function createAlim(
+  formData: FormData,
+): Promise<{ error?: string; productId?: number }> {
   const tarih = String(formData.get("tarih") ?? "").trim();
   const urunAdi = String(formData.get("urunAdi") ?? "").trim();
   const alimAdeti = num(formData.get("alimAdeti"));
@@ -51,6 +53,17 @@ export async function createAlim(formData: FormData): Promise<void | { error?: s
   revalidatePath("/raporlar/stok");
   revalidatePath("/raporlar/urun");
   revalidatePath("/raporlar/tedarikci");
+
+  // Alım, ürün kartını (yoksa) otomatik açar. Kullanıcıyı doğrudan kartı
+  // tamamlamaya yönlendirebilmek için ürünün id'sini geri döndür.
+  try {
+    const products = await getProducts();
+    const match = products.find((p) => p.name.toLowerCase() === urunAdi.toLowerCase());
+    if (match) return { productId: match.id };
+  } catch {
+    /* id bulunamazsa akış bozulmaz */
+  }
+  return {};
 }
 
 export async function updateAlim(id: number, formData: FormData): Promise<void | { error?: string }> {

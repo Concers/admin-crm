@@ -19,6 +19,7 @@ import { adminRouter } from "./routes/admin.js";
 import { inventoryRouter } from "./routes/inventory.js";
 import { documentsRouter } from "./routes/documents.js";
 import { exportRouter } from "./routes/export.js";
+import { importRouter } from "./routes/import.js";
 import { reconciliationRouter } from "./routes/reconciliation.js";
 import { financeRouter } from "./routes/finance.js";
 
@@ -47,6 +48,7 @@ app.use("/api", adminRouter);
 app.use("/api", inventoryRouter);
 app.use("/api", documentsRouter);
 app.use("/api", exportRouter);
+app.use("/api", importRouter);
 app.use("/api", reconciliationRouter);
 app.use("/api", financeRouter);
 

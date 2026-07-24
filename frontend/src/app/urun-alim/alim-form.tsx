@@ -33,10 +33,20 @@ export function AlimForm({
       </div>
       <div>
         <Label htmlFor="urunAdi">Ürün Adı *</Label>
-        <Select id="urunAdi" name="urunAdi" required defaultValue="">
-          <option value="" disabled>Seçin</option>
-          {urunler.map((u) => <option key={u} value={u}>{u}</option>)}
-        </Select>
+        {/* Ürün Detay kartlarından çekilir: tıklayarak seç veya yazarak çağır. */}
+        <Input
+          id="urunAdi"
+          name="urunAdi"
+          list="urun-detay-list"
+          required
+          autoComplete="off"
+          placeholder="Ürün seçin veya yazın"
+        />
+        <datalist id="urun-detay-list">
+          {urunler.map((u) => (
+            <option key={u} value={u} />
+          ))}
+        </datalist>
       </div>
       <div>
         <Label htmlFor="tedarikci">Tedarikçi</Label>

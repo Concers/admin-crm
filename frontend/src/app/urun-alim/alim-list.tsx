@@ -36,13 +36,16 @@ import type { AlimRow } from "./alim-rows";
 
 export type { AlimRow };
 
+/** Alım ekranında ürün seçici için: id + eksik-detay bayrağı. */
+export type UrunKart = { id: number; name: string; complete: boolean };
+
 export function AlimWorkspace({
   rows,
-  urunler,
+  urunKartlari,
   tedarikciler,
 }: {
   rows: AlimRow[];
-  urunler: string[];
+  urunKartlari: UrunKart[];
   tedarikciler: string[];
 }) {
   const [createOpen, setCreateOpen] = useState(false);
@@ -59,7 +62,7 @@ export function AlimWorkspace({
       {createOpen && (
         <AlimModal
           mode="create"
-          urunler={urunler}
+          urunKartlari={urunKartlari}
           tedarikciler={tedarikciler}
           onClose={() => setCreateOpen(false)}
         />
@@ -68,7 +71,7 @@ export function AlimWorkspace({
         <AlimModal
           mode="edit"
           row={editing}
-          urunler={urunler}
+          urunKartlari={urunKartlari}
           tedarikciler={tedarikciler}
           onClose={() => setEditing(null)}
         />
