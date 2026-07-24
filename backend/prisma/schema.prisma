@@ -107,6 +107,7 @@ model Partner {
   productLinks        ProductPartnerLink[]
   materialLinks       MaterialPartnerLink[]
   requestForms        RequestForm[]
+  forms               GenericForm[]
 
   @@index([type])
 }
@@ -848,6 +849,38 @@ model RequestFormLine {
   form RequestForm @relation(fields: [formId], references: [id], onDelete: Cascade)
 
   @@index([formId])
+}
+
+// -----------------------------------------------------------------------------
+// Formlar (§6) — genel belge iskeleti. Başlık + serbest içerik; içerik sonradan
+// doldurulur. Teklif (Quote) ve Talep (RequestForm) ayrı modüllerde.
+// -----------------------------------------------------------------------------
+
+enum FormKind {
+  SERVICE_CONTRACT // Hizmet Sözleşmesi
+  TERMIN // Termin Formu
+  JOB_APPLICATION // İş Başvuru Formu
+  COOKIE_CONSENT // Çerezler İçin Form
+  ECATALOG // E-Katalog / Tanıtım Formu
+  OTHER
+}
+
+model GenericForm {
+  id        Int      @id @default(autoincrement())
+  kind      FormKind
+  subtype   String? // ör. Hizmet Sözleşmesi: karma / vekalet / eser
+  title     String
+  partnerId Int? // ilgili cari (opsiyonel)
+  date      DateTime @default(now())
+  status    String   @default("DRAFT") // DRAFT / ACTIVE / ARCHIVED
+  body      String? // serbest içerik (metin) — sonradan doldurulur
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  partner Partner? @relation(fields: [partnerId], references: [id])
+
+  @@index([kind])
+  @@index([partnerId])
 }
 
 /// Fiyat listesi.

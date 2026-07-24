@@ -134,25 +134,23 @@ her cari satırında **detay kartı** linki. Runtime doğrulandı (PUT yeni alan
 
 ---
 
-## 6. FORMLAR (başlıklar açılacak, içerik sonra)
+## 6. FORMLAR ✅ TAMAMLANDI (2026-07-24)
 
-Mevcut belgeler: Order, Quote (Teklif), Invoice, DeliveryNote, Return, BOM, ProductionOrder
-([documents.ts](backend/src/routes/documents.ts)). Aşağıdaki form tipleri **yok**.
-
-- [ ] Hizmet Sözleşmesi Formu (karma nitelikli / vekâlet usulü / eser sözleşmesi)
-- [ ] Talep Formu
-- [ ] Termin Formu
-- [~] Teklif Formu — `Quote` modeli var, "Teklif Formu" çıktısı standartlaştırılacak
-- [ ] İş Başvuru Formu
-- [ ] Çerezler İçin Form
-- [ ] E-Katalog / Tanıtım Formu
+Esnek `GenericForm` modeli (kind + subtype + başlık + serbest içerik) + **`/formlar`** hub'ı.
+Backend: [forms.ts](backend/src/routes/forms.ts) — CRUD + PDF ([documentToPdf](backend/src/lib/pdf.js)).
+Migration `add_generic_form`. Başlık oluşturulur, içerik sonradan doldurulur; her form PDF alınabilir.
+- [x] Hizmet Sözleşmesi Formu (alt tür: karma nitelikli / vekâlet usulü / eser sözleşmesi — detayda seçilir)
+- [x] Termin Formu
+- [x] İş Başvuru Formu
+- [x] Çerezler İçin Form
+- [x] E-Katalog / Tanıtım Formu
+- [x] Teklif Formu — mevcut `Quote` (hub'dan → /belgeler/teklif)
+- [x] Talep Formu — §4 `RequestForm` (hub'dan → /talep-formu)
+- [x] Runtime doğrulandı (create + update + PDF + delete)
 
 ---
 
-## Öncelik önerisi (taslak)
-1. Ürün Detay kartı (§1) — modeli ve UI'yi kur; Ürün Alım autocomplete entegrasyonu (§1.4)
-2. Cari alan genişletme + detay sayfaları (§5)
-3. Materyal Detay (§2)
-4. Import/Export standardı (§3)
-5. Tedarik Emri + Üretim/Talep formu bağı (§4)
-6. Form başlıkları (§6)
+## Durum: TÜM ANA MADDELER (§1–§6) TAMAMLANDI ✅
+Kalan bilinçli "sonraki tur" notları modül başlıklarında `[~]` ile işaretli
+(ör. gerçek dosya upload, tür-bazlı materyal alanları, sunucu-PDF raporları,
+sektör/kullanım-alanı seçenek admini, materyal↔ürün/termin bağı).

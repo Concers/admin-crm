@@ -790,6 +790,32 @@ export const updateRequestForm = (id: number, body: Json) =>
 export const deleteRequestForm = (id: number) => apiSend("DELETE", `/request-forms/${id}`);
 export const generateRequestFormFromOrder = (orderId: number, body: Json) =>
   apiSend<RequestFormDoc>("POST", `/production-orders/${orderId}/request-form`, body);
+
+// --- Formlar (§6) ------------------------------------------------------------
+export type FormKind =
+  | "SERVICE_CONTRACT"
+  | "TERMIN"
+  | "JOB_APPLICATION"
+  | "COOKIE_CONSENT"
+  | "ECATALOG"
+  | "OTHER";
+export interface GenericFormDoc {
+  id: number;
+  kind: FormKind;
+  subtype: string | null;
+  title: string;
+  partnerId: number | null;
+  date: string;
+  status: string;
+  body: string | null;
+  partner?: Partner | null;
+}
+export const getForms = (kind?: string) =>
+  apiGet<GenericFormDoc[]>(`/forms${kind ? `?kind=${kind}` : ""}`);
+export const getForm = (id: number) => apiGet<GenericFormDoc>(`/forms/${id}`);
+export const createForm = (body: Json) => apiSend<GenericFormDoc>("POST", "/forms", body);
+export const updateForm = (id: number, body: Json) => apiSend<GenericFormDoc>("PUT", `/forms/${id}`, body);
+export const deleteForm = (id: number) => apiSend("DELETE", `/forms/${id}`);
 export interface PriceListItem { id?: number; productId: number; price: number }
 export interface PriceListDoc {
   id: number;

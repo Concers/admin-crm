@@ -50,6 +50,7 @@ const belgeler: NavItem[] = [
   { href: "/belgeler/teklif", label: "Teklifler", icon: FileText, roles: ["ADMIN", "SALES_REP"] },
   { href: "/belgeler/fatura", label: "Faturalar", icon: FileText, roles: ["ADMIN"] },
   { href: "/belgeler/iade", label: "İadeler", icon: Undo2, roles: ["ADMIN"] },
+  { href: "/formlar", label: "Formlar", icon: FileText, roles: ["ADMIN"] },
   { href: "/mutabakat", label: "Ödeme Mutabakatı", icon: Wallet, roles: ["ADMIN"] },
 ];
 
