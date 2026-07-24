@@ -81,11 +81,14 @@ session token ile aktarıyor; [ExportButton](frontend/src/components/export-butt
 - [~] Raporlar — mevcut ExportButton'lar (Gider Raporu vb.) otomatik 4 formatı aldı; rapor-özel tablolar (KDV, gelir tablosu…) aynı `sendExport` deseniyle sonraki tur
 - [ ] PDF: gerçek sunucu-PDF için lib yok; şimdilik tarayıcıdan "Yazdır → PDF" (rapor ekstrelerinde mevcut). Sunucu-PDF sonraki tur.
 
-### 3.1 İçe aktarma (veri okuma) — SIRADAKI
-Dosya upload altyapısı (multer/raw-body) + parse + doğrulama + tekrar-kayıt kontrolü gerekiyor.
-- [ ] Ürün Alım / Satış / Gider — **XLSX / CSV / XML** içe aktarma (UI'dan dosya yükle → önizle → kaydet)
-- [~] **PDF / WORD içe aktarma gerçekçi değil**: serbest formatlı PDF/Word'den güvenilir tablo çıkarımı ancak OCR/heuristik ile olur; kapsam dışı bırakılması önerilir (şablon-XLSX ile ikame).
-  > (Mevcut `importFromExcel.ts` yalnızca ilk migrasyon içindi, UI'dan yükleme yok.)
+### 3.1 İçe aktarma (veri okuma) ✅ TAMAMLANDI (2026-07-24)
+Backend: `multer` + [import.ts](backend/src/routes/import.ts) → `POST /import/:type` (ADMIN-only).
+XLSX/CSV/XML parse; Türkçe **veya** İngilizce başlık kabulü; `?commit=true` yoksa **yan etkisiz önizleme**.
+Frontend: [proxy route](frontend/src/app/import/[type]/route.ts) + [ImportButton](frontend/src/components/import-button.tsx)
+(dosya seç → **Önizle** → hata/geçerli özeti → **Kaydet**). Alım/Satış/Gider sayfalarına bağlı.
+- [x] Ürün Alım / Satış / Gider — **XLSX / CSV / XML** içe aktarma (yükle → önizle → kaydet)
+- [x] Round-trip doğrulandı: export .xlsx (81 satır) → preview 81 geçerli/0 hata (yazma yok); 1-satır CSV → commit 1 kayıt
+- [~] **PDF / WORD içe aktarma kapsam dışı**: serbest formatlı belgeden güvenilir tablo çıkarımı OCR/heuristik ister; şablon-XLSX ile ikame.
 
 ---
 

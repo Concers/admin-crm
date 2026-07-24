@@ -2,6 +2,7 @@ import { PageShell } from "@/components/page-shell";
 import { getSales, getProducts, getPartners } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import { ExportButton } from "@/components/export-button";
+import { ImportButton } from "@/components/import-button";
 import { StatCard, PanelCard } from "@/components/ui/stat-card";
 import { ShoppingCart, TrendingUp, Receipt, Users } from "lucide-react";
 import { SatisWorkspace } from "./satis-list";
@@ -32,7 +33,12 @@ export default async function UrunSatisPage() {
     <PageShell
       title="Ürün Satış Giriş"
       description="Müşteri satışlarını kaydedin, ciro ve kârlılığı takip edin"
-      actions={<ExportButton type="sales" />}
+      actions={
+        <>
+          <ImportButton type="sales" />
+          <ExportButton type="sales" />
+        </>
+      }
     >
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:gap-4">
         <StatCard

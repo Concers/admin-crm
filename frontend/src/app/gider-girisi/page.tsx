@@ -10,6 +10,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { mergeGiderTurleri } from "@/lib/gider-turleri";
 import { ExportButton } from "@/components/export-button";
+import { ImportButton } from "@/components/import-button";
 import { mapGiderRows } from "./gider-rows";
 import { GiderWorkspace } from "./gider-workspace";
 
@@ -72,7 +73,12 @@ export default async function GiderGirisiPage() {
     <PageShell
       title="Gider Girişi"
       description="Genel ve ürün giderlerini yönetin"
-      actions={<ExportButton type="expenses" />}
+      actions={
+        <>
+          <ImportButton type="expenses" />
+          <ExportButton type="expenses" />
+        </>
+      }
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label="Toplam Kayıt" value={ozet._count} icon={Receipt} accent="blue" />

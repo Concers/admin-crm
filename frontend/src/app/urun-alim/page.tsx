@@ -3,6 +3,7 @@ import { getPurchases, getProducts, getPartners } from "@/lib/api";
 import { isProductDetailFilled } from "@/lib/urun-detay-fields";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ExportButton } from "@/components/export-button";
+import { ImportButton } from "@/components/import-button";
 import { StatCard, PanelCard } from "@/components/ui/stat-card";
 import { Package, ShoppingCart, Receipt, Wallet } from "lucide-react";
 import { AlimWorkspace } from "./alim-list";
@@ -81,7 +82,12 @@ export default async function UrunAlimPage() {
     <PageShell
       title="Ürün Alım Giriş"
       description="Tedarikçi alımlarını ve maliyetleri yönetin"
-      actions={<ExportButton type="purchases" />}
+      actions={
+        <>
+          <ImportButton type="purchases" />
+          <ExportButton type="purchases" />
+        </>
+      }
     >
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:gap-4">
         <StatCard
