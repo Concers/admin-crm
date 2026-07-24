@@ -92,11 +92,16 @@ Frontend: [proxy route](frontend/src/app/import/[type]/route.ts) + [ImportButton
 
 ---
 
-## 4. ÜRETİM / TEDARİK EMRİ
+## 4. ÜRETİM / TEDARİK EMRİ ✅ TAMAMLANDI (2026-07-24)
 
-- [x] Üretim Emri modülü mevcut ([uretim-emri](frontend/src/app/uretim-emri), `ProductionOrder`)
-- [ ] Üretim Emri → **Talep Formu** üretmeli: ne üretileceği + kime ürettirileceği; hazır/satıştaki ürün için çalıştırılabilmeli
-- [ ] **TEDARİK EMRİ (Yeni)** — hammaddeyi biz satın alacağımızda tedarikçilere **talep formu** oluşturmalı (şu an yok)
+Ortak belge: **Talep Formu** (`RequestForm` + `RequestFormLine`, tip PRODUCTION/PROCUREMENT).
+Backend: [requestForms.ts](backend/src/routes/requestForms.ts) — CRUD + üretim emrinden üretme +
+**PDF** ([lib/pdf.ts](backend/src/lib/pdf.ts) `documentToPdf`). Migration `add_request_form`.
+- [x] Üretim Emri → **Talep Formu Oluştur**: her satırda aksiyon → üretici (cari) seç → mamul+miktar satırıyla PRODUCTION formu üretir ([talep-formu-action.tsx](frontend/src/app/uretim-emri/talep-formu-action.tsx))
+- [x] **Tedarik Emri (Yeni)** — [/tedarik-emri](frontend/src/app/tedarik-emri): tedarikçi + kalemler → PROCUREMENT talep formu
+- [x] Talep Formları listesi + detay ([/talep-formu](frontend/src/app/talep-formu)): durum (Taslak/Gönderildi/Karşılandı/İptal), kalem düzenleme, **PDF indir**, sil
+- [x] Runtime doğrulandı: procurement create + PDF (geçerli), üretim emrinden generate (mamul satırı), PDF üretimi
+- [~] İleride: BOM bileşenlerini tedarik emrine otomatik doldurma; Materyal kartını talep formu kaleminde kullanma
 
 ---
 

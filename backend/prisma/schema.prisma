@@ -90,6 +90,7 @@ model Partner {
   paymentInstruments  PaymentInstrument[]
   productLinks        ProductPartnerLink[]
   materialLinks       MaterialPartnerLink[]
+  requestForms        RequestForm[]
 
   @@index([type])
 }
@@ -776,9 +777,61 @@ model ProductionOrder {
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
-  bom Bom? @relation(fields: [bomId], references: [id])
+  bom          Bom?          @relation(fields: [bomId], references: [id])
+  requestForms RequestForm[]
 
   @@index([status])
+}
+
+// -----------------------------------------------------------------------------
+// Talep Formu — Üretim Emri'nden üreticiye (PRODUCTION) veya Tedarik Emri'nden
+// tedarikçiye (PROCUREMENT) gönderilen talep belgesi.
+// -----------------------------------------------------------------------------
+
+enum RequestFormType {
+  PRODUCTION // üretim talebi (kime ürettireceğiz)
+  PROCUREMENT // tedarik talebi (hammadde/malzeme alımı)
+}
+
+enum RequestFormStatus {
+  DRAFT // taslak
+  SENT // gönderildi
+  FULFILLED // karşılandı
+  CANCELLED // iptal
+}
+
+model RequestForm {
+  id                Int               @id @default(autoincrement())
+  type              RequestFormType
+  partnerId         Int // kime: üretici (PRODUCTION) veya tedarikçi (PROCUREMENT)
+  productionOrderId Int? // PRODUCTION formu bir üretim emrinden üretildiyse
+  date              DateTime          @default(now())
+  status            RequestFormStatus @default(DRAFT)
+  notes             String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  partner         Partner           @relation(fields: [partnerId], references: [id])
+  productionOrder ProductionOrder?  @relation(fields: [productionOrderId], references: [id])
+  lines           RequestFormLine[]
+
+  @@index([type])
+  @@index([partnerId])
+  @@index([status])
+}
+
+model RequestFormLine {
+  id        Int     @id @default(autoincrement())
+  formId    Int
+  productId Int?  // tanımlı ürün (opsiyonel)
+  itemName  String // serbest metin ad (ürün seçilmezse)
+  quantity  Float
+  unit      String? // birim
+  note      String?
+
+  form RequestForm @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([formId])
 }
 
 /// Fiyat listesi.

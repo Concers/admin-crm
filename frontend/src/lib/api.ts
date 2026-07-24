@@ -719,6 +719,44 @@ export interface ProductionOrderDoc {
   endDate: string | null;
   notes: string | null;
 }
+
+// --- Talep Formu (Üretim / Tedarik) ------------------------------------------
+export type RequestFormType = "PRODUCTION" | "PROCUREMENT";
+export type RequestFormStatus = "DRAFT" | "SENT" | "FULFILLED" | "CANCELLED";
+export interface RequestFormLine {
+  id?: number;
+  productId: number | null;
+  itemName: string;
+  quantity: number;
+  unit: string | null;
+  note: string | null;
+}
+export interface RequestFormDoc {
+  id: number;
+  type: RequestFormType;
+  partnerId: number;
+  productionOrderId: number | null;
+  date: string;
+  status: RequestFormStatus;
+  notes: string | null;
+  partner: Partner;
+  lines: RequestFormLine[];
+  productionOrder?: ProductionOrderDoc | null;
+}
+export const getRequestForms = (params?: { type?: string; status?: string }) => {
+  const qs = new URLSearchParams();
+  if (params?.type) qs.set("type", params.type);
+  if (params?.status) qs.set("status", params.status);
+  const q = qs.toString();
+  return apiGet<RequestFormDoc[]>(`/request-forms${q ? `?${q}` : ""}`);
+};
+export const getRequestForm = (id: number) => apiGet<RequestFormDoc>(`/request-forms/${id}`);
+export const createRequestForm = (body: Json) => apiSend<RequestFormDoc>("POST", "/request-forms", body);
+export const updateRequestForm = (id: number, body: Json) =>
+  apiSend<RequestFormDoc>("PUT", `/request-forms/${id}`, body);
+export const deleteRequestForm = (id: number) => apiSend("DELETE", `/request-forms/${id}`);
+export const generateRequestFormFromOrder = (orderId: number, body: Json) =>
+  apiSend<RequestFormDoc>("POST", `/production-orders/${orderId}/request-form`, body);
 export interface PriceListItem { id?: number; productId: number; price: number }
 export interface PriceListDoc {
   id: number;

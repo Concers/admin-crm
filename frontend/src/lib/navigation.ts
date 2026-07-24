@@ -62,6 +62,8 @@ const stokKasa: NavItem[] = [
 const uretimFiyat: NavItem[] = [
   { href: "/uretim-recetesi", label: "Ürün Reçetesi", icon: ClipboardList, roles: ["ADMIN"] },
   { href: "/uretim-emri", label: "Üretim Emri", icon: ClipboardList, roles: ["ADMIN"] },
+  { href: "/tedarik-emri", label: "Tedarik Emri", icon: Truck, roles: ["ADMIN"] },
+  { href: "/talep-formu", label: "Talep Formları", icon: FileText, roles: ["ADMIN"] },
   { href: "/fiyat-listesi", label: "Fiyat Listesi", icon: FileText, roles: ["ADMIN"] },
   { href: "/iskontolar", label: "İskontolar", icon: FileText, roles: ["ADMIN"] },
 ];

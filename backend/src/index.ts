@@ -20,6 +20,7 @@ import { inventoryRouter } from "./routes/inventory.js";
 import { documentsRouter } from "./routes/documents.js";
 import { exportRouter } from "./routes/export.js";
 import { importRouter } from "./routes/import.js";
+import { requestFormsRouter } from "./routes/requestForms.js";
 import { reconciliationRouter } from "./routes/reconciliation.js";
 import { financeRouter } from "./routes/finance.js";
 
@@ -49,6 +50,7 @@ app.use("/api", inventoryRouter);
 app.use("/api", documentsRouter);
 app.use("/api", exportRouter);
 app.use("/api", importRouter);
+app.use("/api", requestFormsRouter);
 app.use("/api", reconciliationRouter);
 app.use("/api", financeRouter);
 

@@ -1,17 +1,19 @@
 import { PageShell } from "@/components/page-shell";
 import { StatCard, PanelCard } from "@/components/ui/stat-card";
 import { CheckCircle2, Cog, Factory, Package } from "lucide-react";
-import { getBoms, getProductionOrders, getProducts } from "@/lib/api";
+import { getBoms, getPartners, getProductionOrders, getProducts } from "@/lib/api";
 import { EmirWorkspace } from "./emir-workspace";
 import { mapEmirRows, mapReceteOptions } from "./emir-rows";
 
 export const dynamic = "force-dynamic";
 
 export default async function UretimEmriPage() {
-  const [orders, products, boms] = await Promise.all([
+  const [orders, products, boms, serviceProviders, suppliers] = await Promise.all([
     getProductionOrders(),
     getProducts(),
     getBoms(),
+    getPartners("SERVICE_PROVIDER"),
+    getPartners("SUPPLIER"),
   ]);
 
   const productName = new Map(products.map((p) => [p.id, p.name]));
@@ -19,6 +21,10 @@ export default async function UretimEmriPage() {
   const productOpts = products.map((p) => ({ id: p.id, name: p.name }));
   const receteler = mapReceteOptions(boms);
   const rows = mapEmirRows(orders, productName, bomName);
+  // Kime ürettirilebilir: hizmet verenler + tedarikçiler.
+  const ureticiler = [...serviceProviders, ...suppliers]
+    .map((p) => ({ id: p.id, name: p.name }))
+    .sort((a, b) => a.name.localeCompare(b.name, "tr"));
 
   const ozet = {
     kayit: orders.length,
@@ -66,7 +72,12 @@ export default async function UretimEmriPage() {
         description="Mamul, reçete, miktar ve durum — satıra tıklayarak düzenleyin"
         accent="indigo"
       >
-        <EmirWorkspace rows={rows} products={productOpts} receteler={receteler} />
+        <EmirWorkspace
+          rows={rows}
+          products={productOpts}
+          receteler={receteler}
+          ureticiler={ureticiler}
+        />
       </PanelCard>
     </PageShell>
   );

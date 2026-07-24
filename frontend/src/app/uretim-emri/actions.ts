@@ -4,9 +4,26 @@ import { revalidatePath } from "next/cache";
 import {
   createProductionOrder,
   deleteProductionOrder,
+  generateRequestFormFromOrder,
   updateProductionOrder,
 } from "@/lib/api";
 import { dateInputToApi } from "@/lib/dates";
+
+/** Üretim emrinden üreticiye PRODUCTION talep formu üretir; yeni formun id'sini döndürür. */
+export async function generateTalepFormuAction(
+  orderId: number,
+  partnerId: number,
+  notes?: string,
+): Promise<{ error?: string; id?: number }> {
+  if (!partnerId) return { error: "Üretici (cari) seçilmelidir." };
+  try {
+    const form = await generateRequestFormFromOrder(orderId, { partnerId, notes: notes ?? null });
+    revalidatePath("/talep-formu");
+    return { id: form?.id };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Talep formu oluşturulamadı." };
+  }
+}
 
 const VALID_STATUS = new Set(["PLANNED", "IN_PROGRESS", "DONE", "CANCELLED"]);
 

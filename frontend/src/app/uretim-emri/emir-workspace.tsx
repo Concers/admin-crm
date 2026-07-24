@@ -18,6 +18,7 @@ import { useActionToast } from "@/hooks/use-action-toast";
 import { cn } from "@/lib/utils";
 import { deleteEmir } from "./actions";
 import { EmirModal } from "./emir-modal";
+import { TalepFormuAction } from "./talep-formu-action";
 import type { EmirTableRow, ReceteOption } from "./emir-rows";
 
 const COLUMNS = [
@@ -107,10 +108,12 @@ export function EmirWorkspace({
   rows,
   products,
   receteler,
+  ureticiler,
 }: {
   rows: EmirTableRow[];
   products: { id: number; name: string }[];
   receteler: ReceteOption[];
+  ureticiler: { id: number; name: string }[];
 }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<EmirTableRow | null>(null);
@@ -122,7 +125,7 @@ export function EmirWorkspace({
         hint="Satıra tıklayarak düzenleyebilir veya yeni üretim emri ekleyebilirsiniz."
         onAdd={() => setCreateOpen(true)}
       />
-      <EmirList rows={rows} onEdit={setEditing} />
+      <EmirList rows={rows} onEdit={setEditing} ureticiler={ureticiler} />
       {createOpen && (
         <EmirModal
           mode="create"
@@ -147,9 +150,11 @@ export function EmirWorkspace({
 function EmirList({
   rows,
   onEdit,
+  ureticiler,
 }: {
   rows: EmirTableRow[];
   onEdit: (row: EmirTableRow) => void;
+  ureticiler: { id: number; name: string }[];
 }) {
   const columns = useMemo(
     () => [
@@ -179,10 +184,12 @@ function EmirList({
         label: "",
         sortable: false as const,
         filterable: false as const,
-        render: (row: EmirTableRow) => <RowActions row={row} onEdit={() => onEdit(row)} />,
+        render: (row: EmirTableRow) => (
+          <RowActions row={row} onEdit={() => onEdit(row)} ureticiler={ureticiler} />
+        ),
       },
     ],
-    [onEdit]
+    [onEdit, ureticiler]
   );
 
   return (
@@ -204,10 +211,19 @@ function EmirList({
   );
 }
 
-function RowActions({ row, onEdit }: { row: EmirTableRow; onEdit: () => void }) {
+function RowActions({
+  row,
+  onEdit,
+  ureticiler,
+}: {
+  row: EmirTableRow;
+  onEdit: () => void;
+  ureticiler: { id: number; name: string }[];
+}) {
   const { run, pending } = useActionToast();
   return (
     <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+      <TalepFormuAction orderId={row.id} mamul={row.mamul} ureticiler={ureticiler} />
       <Button
         variant="ghost"
         size="icon"

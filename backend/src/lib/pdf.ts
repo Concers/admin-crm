@@ -50,6 +50,59 @@ export function rowsToPdf(rows: Row[], title: string): Promise<Buffer> {
     defaultStyle: { font: "Roboto", fontSize: 8 },
   };
 
+  return streamToBuffer(docDefinition);
+}
+
+/** A titled single document (header key/values + a lines table) — e.g. Talep Formu. */
+export function documentToPdf(opts: {
+  title: string;
+  subtitle?: string;
+  info: [string, string][];
+  columns: string[];
+  rows: (string | number)[][];
+  footer?: string;
+}): Promise<Buffer> {
+  const infoTable = {
+    table: {
+      widths: ["auto", "*"] as (string | number)[],
+      body: opts.info.map(([k, v]) => [
+        { text: k, bold: true, color: "#334155" },
+        { text: v || "—" },
+      ]),
+    },
+    layout: "noBorders",
+    margin: [0, 0, 0, 12] as [number, number, number, number],
+  };
+  const linesTable = {
+    table: {
+      headerRows: 1,
+      widths: opts.columns.map((_, i) => (i === 0 ? "*" : "auto")) as (string | number)[],
+      body: [
+        opts.columns.map((c) => ({ text: c, bold: true, fillColor: "#f1f5f9" })),
+        ...opts.rows.map((r) => r.map((c) => ({ text: c === null || c === undefined ? "" : String(c) }))),
+      ],
+    },
+    layout: "lightHorizontalLines",
+  };
+  const docDefinition = {
+    pageMargins: [40, 40, 40, 40] as [number, number, number, number],
+    content: [
+      { text: opts.title, bold: true, fontSize: 16 },
+      ...(opts.subtitle
+        ? [{ text: opts.subtitle, fontSize: 9, color: "#64748b", margin: [0, 2, 0, 10] as [number, number, number, number] }]
+        : [{ text: "", margin: [0, 0, 0, 10] as [number, number, number, number] }]),
+      infoTable,
+      linesTable,
+      ...(opts.footer
+        ? [{ text: opts.footer, fontSize: 9, color: "#64748b", margin: [0, 14, 0, 0] as [number, number, number, number] }]
+        : []),
+    ],
+    defaultStyle: { font: "Roboto", fontSize: 10 },
+  };
+  return streamToBuffer(docDefinition);
+}
+
+function streamToBuffer(docDefinition: unknown): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
       const doc = printer.createPdfKitDocument(docDefinition);
