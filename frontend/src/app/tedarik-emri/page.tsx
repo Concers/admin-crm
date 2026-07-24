@@ -3,15 +3,22 @@ import { ArrowRight, Truck } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPartners, getProducts } from "@/lib/api";
+import { PARTNER_TYPE_LABEL } from "@/lib/cari-fields";
 import { TedarikForm } from "./tedarik-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function TedarikEmriPage() {
-  const [suppliers, products] = await Promise.all([getPartners("SUPPLIER"), getProducts()]);
-  const supplierOpts = suppliers
-    .map((s) => ({ id: s.id, name: s.name }))
-    .sort((a, b) => a.name.localeCompare(b.name, "tr"));
+  // Tüm oluşturulmuş cariler seçilebilir olsun (tedarikçiler başta, tip etiketli).
+  const [partners, products] = await Promise.all([getPartners(), getProducts()]);
+  const supplierOpts = partners
+    .map((s) => ({ id: s.id, name: s.name, type: s.type }))
+    .sort((a, b) => {
+      if (a.type === "SUPPLIER" && b.type !== "SUPPLIER") return -1;
+      if (b.type === "SUPPLIER" && a.type !== "SUPPLIER") return 1;
+      return a.name.localeCompare(b.name, "tr");
+    })
+    .map((s) => ({ id: s.id, name: s.name, typeLabel: PARTNER_TYPE_LABEL[s.type] ?? s.type }));
   const productOpts = products.map((p) => ({ id: p.id, name: p.name, unit: p.unit }));
 
   return (

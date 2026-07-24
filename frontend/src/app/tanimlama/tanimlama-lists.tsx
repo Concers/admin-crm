@@ -119,6 +119,7 @@ export function TedarikciList({
   return (
     <>
       <DataTable
+        pageSize={10}
         rows={tableRows}
         onRowClick={(row) => setEditing(row)}
         defaultSort={{ key: "ad", asc: true }}
@@ -273,6 +274,7 @@ export function UrunList({
   return (
     <>
       <DataTable
+        pageSize={10}
         rows={rows}
         onRowClick={(row) => setEditing(row)}
         defaultSort={{ key: "ad", asc: true }}
@@ -389,6 +391,7 @@ export function SimpleAdList({
   return (
     <>
       <DataTable
+        pageSize={10}
         rows={rows}
         onRowClick={setEditing}
         defaultSort={{ key: "ad", asc: true }}

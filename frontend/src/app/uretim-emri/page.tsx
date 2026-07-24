@@ -2,18 +2,18 @@ import { PageShell } from "@/components/page-shell";
 import { StatCard, PanelCard } from "@/components/ui/stat-card";
 import { CheckCircle2, Cog, Factory, Package } from "lucide-react";
 import { getBoms, getPartners, getProductionOrders, getProducts } from "@/lib/api";
+import { PARTNER_TYPE_LABEL } from "@/lib/cari-fields";
 import { EmirWorkspace } from "./emir-workspace";
 import { mapEmirRows, mapReceteOptions } from "./emir-rows";
 
 export const dynamic = "force-dynamic";
 
 export default async function UretimEmriPage() {
-  const [orders, products, boms, serviceProviders, suppliers] = await Promise.all([
+  const [orders, products, boms, partners] = await Promise.all([
     getProductionOrders(),
     getProducts(),
     getBoms(),
-    getPartners("SERVICE_PROVIDER"),
-    getPartners("SUPPLIER"),
+    getPartners(),
   ]);
 
   const productName = new Map(products.map((p) => [p.id, p.name]));
@@ -21,10 +21,11 @@ export default async function UretimEmriPage() {
   const productOpts = products.map((p) => ({ id: p.id, name: p.name }));
   const receteler = mapReceteOptions(boms);
   const rows = mapEmirRows(orders, productName, bomName);
-  // Kime ürettirilebilir: hizmet verenler + tedarikçiler.
-  const ureticiler = [...serviceProviders, ...suppliers]
-    .map((p) => ({ id: p.id, name: p.name }))
-    .sort((a, b) => a.name.localeCompare(b.name, "tr"));
+  // Kime ürettirilebilir: tüm oluşturulmuş cariler (hizmet veren/tedarikçi başta, tip etiketli).
+  const producerRank = (t: string) => (t === "SERVICE_PROVIDER" ? 0 : t === "SUPPLIER" ? 1 : 2);
+  const ureticiler = [...partners]
+    .sort((a, b) => producerRank(a.type) - producerRank(b.type) || a.name.localeCompare(b.name, "tr"))
+    .map((p) => ({ id: p.id, name: `${p.name} — ${PARTNER_TYPE_LABEL[p.type] ?? p.type}` }));
 
   const ozet = {
     kayit: orders.length,

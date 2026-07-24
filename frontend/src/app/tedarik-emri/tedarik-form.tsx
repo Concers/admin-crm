@@ -15,7 +15,7 @@ export function TedarikForm({
   suppliers,
   products,
 }: {
-  suppliers: { id: number; name: string }[];
+  suppliers: { id: number; name: string; typeLabel?: string }[];
   products: { id: number; name: string; unit?: string | null }[];
 }) {
   const router = useRouter();
@@ -52,14 +52,15 @@ export function TedarikForm({
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <Label htmlFor="partnerId">Tedarikçi *</Label>
+          <Label htmlFor="partnerId">Cari (tedarikçi) *</Label>
           <Select id="partnerId" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} required>
             <option value="" disabled>
-              Tedarikçi seçin…
+              Cari seçin…
             </option>
             {suppliers.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
+                {s.typeLabel ? ` — ${s.typeLabel}` : ""}
               </option>
             ))}
           </Select>

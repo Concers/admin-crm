@@ -248,6 +248,7 @@ export function DataTable<T extends Record<string, unknown>>({
   emptyHint = "Filtreleri temizleyin veya yeni kayıt ekleyin.",
   minTableWidth = "600px",
   preserveOrder = false,
+  pageSize,
 }: {
   rows: T[];
   columns: Column<T>[];
@@ -265,6 +266,8 @@ export function DataTable<T extends Record<string, unknown>>({
   emptyHint?: string;
   minTableWidth?: string;
   preserveOrder?: boolean;
+  /** Verildiğinde tablo bu boyutta sayfalanır (uzun listelerde scroll'u azaltır). */
+  pageSize?: number;
 }) {
   const [query, setQuery] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
@@ -455,6 +458,18 @@ export function DataTable<T extends Record<string, unknown>>({
     return data;
   }, [applyExcept, sortKey, asc, preserveOrder, columns]);
 
+  // --- Sayfalama (opt-in: pageSize) -----------------------------------------
+  const [page, setPage] = useState(0);
+  const pageCount = pageSize ? Math.max(1, Math.ceil(filtered.length / pageSize)) : 1;
+  // Filtre/sort sonrası mevcut sayfa taşarsa başa dön.
+  useEffect(() => {
+    if (page > pageCount - 1) setPage(0);
+  }, [page, pageCount]);
+  const paged = useMemo(
+    () => (pageSize ? filtered.slice(page * pageSize, page * pageSize + pageSize) : filtered),
+    [filtered, pageSize, page],
+  );
+
   function clearFilters() {
     setQuery("");
     setFilterValues({});
@@ -620,7 +635,7 @@ export function DataTable<T extends Record<string, unknown>>({
                   </td>
                 </tr>
               )}
-              {filtered.map((row, i) => (
+              {paged.map((row, i) => (
                 <tr
                   key={i}
                   onClick={() => onRowClick?.(row)}
@@ -646,15 +661,45 @@ export function DataTable<T extends Record<string, unknown>>({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--muted-foreground)]">
-        <p>
+        <p className="flex items-center">
           <Badge tone="blue" className="tabular-nums">
             {filtered.length}
           </Badge>
-          <span className="ml-1.5">kayıt gösteriliyor</span>
+          <span className="ml-1.5">kayıt</span>
           {rows.length !== filtered.length && (
             <span className="ml-1">/ {rows.length} toplam</span>
           )}
+          {pageSize && filtered.length > pageSize && (
+            <span className="ml-2 tabular-nums">
+              · {page * pageSize + 1}–{Math.min((page + 1) * pageSize, filtered.length)} arası
+            </span>
+          )}
         </p>
+        {pageSize && filtered.length > pageSize && (
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              ‹ Önceki
+            </Button>
+            <span className="tabular-nums">
+              {page + 1} / {pageCount}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={page >= pageCount - 1}
+              onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+            >
+              Sonraki ›
+            </Button>
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
           {sortKey && !preserveOrder && (
             <span>
