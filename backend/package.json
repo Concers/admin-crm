@@ -30,6 +30,8 @@
     "dotenv": "^16.4.3",
     "express": "^4.21.3",
     "jsonwebtoken": "^9.0.3",
+    "multer": "^2.2.0",
+    "pdfmake": "^0.2.20",
     "xlsx": "^0.18.5",
     "zod": "^4.4.3"
   },
@@ -39,6 +41,7 @@
     "@types/cors": "^2.8.5",
     "@types/express": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.2.0",
     "@types/node": "^22.10.1",
     "prisma": "^6.19.3",
     "tsx": "^4.22.4",

@@ -1050,6 +1050,7 @@ documentsRouter.delete(
 const attachmentBodySchema = z.object({
   entityName: z.string().min(1),
   entityId: z.number().int().positive(),
+  category: z.string().optional(), // ürün kartı: ANALIZ / SERTIFIKA / GORSEL / ETIKET
   fileName: z.string().min(1),
   url: z.string().min(1),
   mimeType: z.string().optional(),
@@ -1083,6 +1084,7 @@ documentsRouter.post(
       data: {
         entityName: data.entityName,
         entityId: data.entityId,
+        category: data.category ?? null,
         fileName: data.fileName,
         url: data.url,
         mimeType: data.mimeType ?? null,

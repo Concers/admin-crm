@@ -91,6 +91,53 @@ masterDataRouter.delete(
 );
 
 // --- Products ----------------------------------------------------------------
+
+/** Optional string → trimmed value or null (undefined = leave unchanged). */
+function optStr(v: unknown): string | null | undefined {
+  if (v === undefined) return undefined;
+  if (v === null) return null;
+  const s = String(v).trim();
+  return s === "" ? null : s;
+}
+
+/** Coerce a request body into Product "Ürün Detay" column values. */
+function productDetailData(body: Record<string, unknown>) {
+  return {
+    category: optStr(body.category),
+    shelfLocation: optStr(body.shelfLocation),
+    barcode: optStr(body.barcode),
+    unit: body.unit !== undefined ? String(body.unit ?? "adet").trim() || "adet" : undefined,
+    minStock:
+      body.minStock === undefined
+        ? undefined
+        : body.minStock === null || body.minStock === ""
+          ? null
+          : Number(body.minStock),
+    isActive: body.isActive === undefined ? undefined : Boolean(body.isActive),
+    isBfm: body.isBfm === undefined ? undefined : Boolean(body.isBfm),
+    productCode: optStr(body.productCode),
+    sectors: optStr(body.sectors),
+    gtipCode: optStr(body.gtipCode),
+    hsCode: optStr(body.hsCode),
+    unCode: optStr(body.unCode),
+    botanicalName: optStr(body.botanicalName),
+    englishName: optStr(body.englishName),
+    casNo: optStr(body.casNo),
+    inciNo: optStr(body.inciNo),
+    origin: optStr(body.origin),
+    chemotype: optStr(body.chemotype),
+    genotype: optStr(body.genotype),
+    variety: optStr(body.variety),
+    geoPopulation: optStr(body.geoPopulation),
+    plantPart: optStr(body.plantPart),
+    productionMethod: optStr(body.productionMethod),
+    der: optStr(body.der),
+    history: optStr(body.history),
+    usageAreas: optStr(body.usageAreas),
+    description: optStr(body.description),
+  };
+}
+
 masterDataRouter.get(
   "/products",
   asyncHandler(async (_req, res) => {
@@ -98,15 +145,35 @@ masterDataRouter.get(
   }),
 );
 
+/** Full "Ürün Detay" kartı: ürün + içerik linkleri + bağlı cariler. */
+masterDataRouter.get(
+  "/products/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid id" });
+    const product = await prisma.product.findUnique({
+      where: { id },
+      include: {
+        links: { orderBy: { createdAt: "desc" } },
+        partnerLinks: { include: { partner: true }, orderBy: { createdAt: "desc" } },
+      },
+    });
+    if (!product) return res.status(404).json({ error: "not_found" });
+    res.json(product);
+  }),
+);
+
 masterDataRouter.post(
   "/products",
   asyncHandler(async (req, res) => {
-    const { name, category, shelfLocation } = req.body ?? {};
+    const body = req.body ?? {};
+    const name = optStr(body.name);
     if (!name) return res.status(400).json({ error: "name is required" });
+    const data = productDetailData(body);
     const product = await prisma.product.upsert({
-      where: { name: String(name).trim() },
-      update: { category, shelfLocation },
-      create: { name: String(name).trim(), category, shelfLocation },
+      where: { name },
+      update: data,
+      create: { name, ...data },
     });
     res.status(201).json(product);
   }),
@@ -117,10 +184,11 @@ masterDataRouter.put(
   asyncHandler(async (req, res) => {
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ error: "invalid id" });
-    const { name, category, shelfLocation } = req.body ?? {};
+    const body = req.body ?? {};
+    const name = optStr(body.name);
     const product = await prisma.product.update({
       where: { id },
-      data: { name: name?.trim(), category, shelfLocation },
+      data: { ...(name ? { name } : {}), ...productDetailData(body) },
     });
     res.json(product);
   }),
@@ -132,6 +200,280 @@ masterDataRouter.delete(
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ error: "invalid id" });
     await prisma.product.delete({ where: { id } });
+    res.status(204).end();
+  }),
+);
+
+// --- Ürün içerik linkleri (makale / blog / instagram) ------------------------
+const LINK_KINDS = new Set(["ARTICLE", "BLOG", "INSTAGRAM"]);
+
+masterDataRouter.post(
+  "/product-links",
+  asyncHandler(async (req, res) => {
+    const body = req.body ?? {};
+    const productId = parseId(body.productId);
+    const kind = String(body.kind ?? "").toUpperCase();
+    const title = optStr(body.title);
+    if (!productId || !LINK_KINDS.has(kind) || !title)
+      return res.status(400).json({ error: "productId, kind, title required" });
+    const link = await prisma.productLink.create({
+      data: {
+        productId,
+        kind: kind as "ARTICLE" | "BLOG" | "INSTAGRAM",
+        title,
+        url: optStr(body.url) ?? null,
+        note: optStr(body.note) ?? null,
+      },
+    });
+    res.status(201).json(link);
+  }),
+);
+
+masterDataRouter.put(
+  "/product-links/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid id" });
+    const body = req.body ?? {};
+    const kind = body.kind !== undefined ? String(body.kind).toUpperCase() : undefined;
+    if (kind !== undefined && !LINK_KINDS.has(kind))
+      return res.status(400).json({ error: "invalid kind" });
+    const link = await prisma.productLink.update({
+      where: { id },
+      data: {
+        ...(kind ? { kind: kind as "ARTICLE" | "BLOG" | "INSTAGRAM" } : {}),
+        ...(body.title !== undefined ? { title: optStr(body.title) ?? "" } : {}),
+        ...(body.url !== undefined ? { url: optStr(body.url) } : {}),
+        ...(body.note !== undefined ? { note: optStr(body.note) } : {}),
+      },
+    });
+    res.json(link);
+  }),
+);
+
+masterDataRouter.delete(
+  "/product-links/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid id" });
+    await prisma.productLink.delete({ where: { id } });
+    res.status(204).end();
+  }),
+);
+
+// --- Ürün ↔ cari bağları (tedarikçi / potansiyel tedarikçi / müşteri) --------
+const PARTNER_ROLES = new Set(["SUPPLIER", "POTENTIAL_SUPPLIER", "CUSTOMER"]);
+
+masterDataRouter.post(
+  "/product-partner-links",
+  asyncHandler(async (req, res) => {
+    const body = req.body ?? {};
+    const productId = parseId(body.productId);
+    const partnerId = parseId(body.partnerId);
+    const role = String(body.role ?? "").toUpperCase();
+    if (!productId || !partnerId || !PARTNER_ROLES.has(role))
+      return res.status(400).json({ error: "productId, partnerId, role required" });
+    try {
+      const link = await prisma.productPartnerLink.create({
+        data: {
+          productId,
+          partnerId,
+          role: role as "SUPPLIER" | "POTENTIAL_SUPPLIER" | "CUSTOMER",
+          note: optStr(body.note) ?? null,
+        },
+        include: { partner: true },
+      });
+      res.status(201).json(link);
+    } catch {
+      return res.status(409).json({ error: "already_linked" });
+    }
+  }),
+);
+
+masterDataRouter.delete(
+  "/product-partner-links/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid id" });
+    await prisma.productPartnerLink.delete({ where: { id } });
+    res.status(204).end();
+  }),
+);
+
+// --- Materyal Detay (ambalaj / etiket / sticker / diğer) ---------------------
+const MATERIAL_CATEGORIES = new Set(["AMBALAJ", "ETIKET", "STICKER", "DIGER"]);
+const MATERIAL_SCOPES = new Set(["OWN", "B2B", "BOTH"]);
+const MATERIAL_ROLES = new Set(["SUPPLIER", "CUSTOMER"]);
+
+/** Coerce a request body into Material column values. */
+function materialData(body: Record<string, unknown>) {
+  return {
+    subType: optStr(body.subType),
+    scope:
+      body.scope !== undefined && MATERIAL_SCOPES.has(String(body.scope))
+        ? String(body.scope)
+        : undefined,
+    model: optStr(body.model),
+    color: optStr(body.color),
+    size: optStr(body.size),
+    material: optStr(body.material),
+    unitPrice:
+      body.unitPrice === undefined
+        ? undefined
+        : body.unitPrice === null || body.unitPrice === ""
+          ? null
+          : Number(body.unitPrice),
+    currency: body.currency !== undefined ? String(body.currency ?? "TRY").trim() || "TRY" : undefined,
+    usageAreas: optStr(body.usageAreas),
+    notes: optStr(body.notes),
+    isActive: body.isActive === undefined ? undefined : Boolean(body.isActive),
+  };
+}
+
+masterDataRouter.get(
+  "/materials",
+  asyncHandler(async (req, res) => {
+    const category = typeof req.query.category === "string" ? req.query.category : undefined;
+    const subType = typeof req.query.subType === "string" ? req.query.subType : undefined;
+    res.json(
+      await prisma.material.findMany({
+        where: {
+          ...(category ? { category } : {}),
+          ...(subType ? { subType } : {}),
+        },
+        orderBy: [{ category: "asc" }, { name: "asc" }],
+      }),
+    );
+  }),
+);
+
+masterDataRouter.get(
+  "/materials/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid id" });
+    const material = await prisma.material.findUnique({
+      where: { id },
+      include: {
+        partnerLinks: { include: { partner: true }, orderBy: { createdAt: "desc" } },
+        priceBreaks: { orderBy: { minQty: "asc" } },
+      },
+    });
+    if (!material) return res.status(404).json({ error: "not_found" });
+    res.json(material);
+  }),
+);
+
+masterDataRouter.post(
+  "/materials",
+  asyncHandler(async (req, res) => {
+    const body = req.body ?? {};
+    const name = optStr(body.name);
+    const category = String(body.category ?? "").toUpperCase();
+    if (!name) return res.status(400).json({ error: "name is required" });
+    if (!MATERIAL_CATEGORIES.has(category))
+      return res.status(400).json({ error: "invalid category" });
+    const material = await prisma.material.create({
+      data: {
+        name,
+        category,
+        ...materialData(body),
+      },
+    });
+    res.status(201).json(material);
+  }),
+);
+
+masterDataRouter.put(
+  "/materials/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid id" });
+    const body = req.body ?? {};
+    const name = optStr(body.name);
+    const category = body.category !== undefined ? String(body.category).toUpperCase() : undefined;
+    if (category !== undefined && !MATERIAL_CATEGORIES.has(category))
+      return res.status(400).json({ error: "invalid category" });
+    const material = await prisma.material.update({
+      where: { id },
+      data: {
+        ...(name ? { name } : {}),
+        ...(category ? { category } : {}),
+        ...materialData(body),
+      },
+    });
+    res.json(material);
+  }),
+);
+
+masterDataRouter.delete(
+  "/materials/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid id" });
+    await prisma.material.delete({ where: { id } });
+    res.status(204).end();
+  }),
+);
+
+// Materyal ↔ cari bağları (tedarikçi / müşteri)
+masterDataRouter.post(
+  "/material-partner-links",
+  asyncHandler(async (req, res) => {
+    const body = req.body ?? {};
+    const materialId = parseId(body.materialId);
+    const partnerId = parseId(body.partnerId);
+    const role = String(body.role ?? "").toUpperCase();
+    if (!materialId || !partnerId || !MATERIAL_ROLES.has(role))
+      return res.status(400).json({ error: "materialId, partnerId, role required" });
+    try {
+      const link = await prisma.materialPartnerLink.create({
+        data: {
+          materialId,
+          partnerId,
+          role: role as "SUPPLIER" | "CUSTOMER",
+          note: optStr(body.note) ?? null,
+        },
+        include: { partner: true },
+      });
+      res.status(201).json(link);
+    } catch {
+      return res.status(409).json({ error: "already_linked" });
+    }
+  }),
+);
+
+masterDataRouter.delete(
+  "/material-partner-links/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid id" });
+    await prisma.materialPartnerLink.delete({ where: { id } });
+    res.status(204).end();
+  }),
+);
+
+// Kademeli fiyat (X adet fiyatı)
+masterDataRouter.post(
+  "/material-price-breaks",
+  asyncHandler(async (req, res) => {
+    const body = req.body ?? {};
+    const materialId = parseId(body.materialId);
+    const minQty = Number(body.minQty);
+    const price = Number(body.price);
+    if (!materialId || !Number.isFinite(minQty) || !Number.isFinite(price))
+      return res.status(400).json({ error: "materialId, minQty, price required" });
+    const brk = await prisma.materialPriceBreak.create({ data: { materialId, minQty, price } });
+    res.status(201).json(brk);
+  }),
+);
+
+masterDataRouter.delete(
+  "/material-price-breaks/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid id" });
+    await prisma.materialPriceBreak.delete({ where: { id } });
     res.status(204).end();
   }),
 );

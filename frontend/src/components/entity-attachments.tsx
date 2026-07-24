@@ -12,9 +12,14 @@ import { formatDate } from "@/lib/utils";
 export function EntityAttachments({
   entityName,
   entityId,
+  category,
+  title = "Dosya Ekleri",
 }: {
   entityName: string;
   entityId: number;
+  /** Set to scope this box to one attachment category (ürün kartı: ANALIZ/SERTIFIKA/GORSEL/ETIKET). */
+  category?: string;
+  title?: string;
 }) {
   const [items, setItems] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,14 +30,14 @@ export function EntityAttachments({
     setLoading(true);
     try {
       const list = await loadAttachments(entityName, entityId);
-      setItems(list);
+      setItems(category ? list.filter((a) => a.category === category) : list);
       setError(null);
     } catch {
       setError("Ekler yüklenemedi.");
     } finally {
       setLoading(false);
     }
-  }, [entityName, entityId]);
+  }, [entityName, entityId, category]);
 
   useEffect(() => {
     void refresh();
@@ -43,7 +48,7 @@ export function EntityAttachments({
       <div className="flex items-center gap-2">
         <Paperclip className="h-4 w-4 text-[var(--muted-foreground)]" />
         <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
-          Dosya Ekleri
+          {title}
         </h4>
       </div>
       <p className="text-xs text-[var(--muted-foreground)]">
@@ -100,6 +105,7 @@ export function EntityAttachments({
           const fd = new FormData(e.currentTarget);
           fd.set("entityName", entityName);
           fd.set("entityId", String(entityId));
+          if (category) fd.set("category", category);
           startTransition(async () => {
             const res = await addAttachment(fd);
             if (!res.error) {

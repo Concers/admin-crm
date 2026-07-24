@@ -106,6 +106,59 @@ export interface Product {
   name: string;
   category?: string | null;
   shelfLocation?: string | null;
+  barcode?: string | null;
+  unit?: string | null;
+  minStock?: number | null;
+  isActive?: boolean;
+  // --- Ürün Detay (ürün kartı) ---
+  productCode?: string | null;
+  sectors?: string | null; // CSV: GIDA,KOZMETIK,TICARI,TEG
+  gtipCode?: string | null;
+  hsCode?: string | null;
+  unCode?: string | null;
+  botanicalName?: string | null;
+  englishName?: string | null;
+  casNo?: string | null;
+  inciNo?: string | null;
+  origin?: string | null;
+  chemotype?: string | null;
+  genotype?: string | null;
+  variety?: string | null;
+  geoPopulation?: string | null;
+  plantPart?: string | null;
+  productionMethod?: string | null;
+  der?: string | null;
+  history?: string | null;
+  usageAreas?: string | null;
+  description?: string | null;
+  isBfm?: boolean;
+}
+
+export type ProductLinkKind = "ARTICLE" | "BLOG" | "INSTAGRAM";
+export interface ProductLink {
+  id: number;
+  productId: number;
+  kind: ProductLinkKind;
+  title: string;
+  url: string | null;
+  note: string | null;
+  createdAt: string;
+}
+
+export type ProductPartnerRole = "SUPPLIER" | "POTENTIAL_SUPPLIER" | "CUSTOMER";
+export interface ProductPartnerLink {
+  id: number;
+  productId: number;
+  partnerId: number;
+  role: ProductPartnerRole;
+  note: string | null;
+  createdAt: string;
+  partner: Partner;
+}
+
+export interface ProductDetail extends Product {
+  links: ProductLink[];
+  partnerLinks: ProductPartnerLink[];
 }
 
 export interface ExpenseCategory {
@@ -212,9 +265,82 @@ export const updatePartner = (id: number, body: Json) => apiSend<Partner>("PUT",
 export const deletePartner = (id: number) => apiSend("DELETE", `/partners/${id}`);
 
 export const getProducts = () => apiGet<Product[]>("/products");
+export const getProduct = (id: number) => apiGet<ProductDetail>(`/products/${id}`);
 export const createProduct = (body: Json) => apiSend<Product>("POST", "/products", body);
 export const updateProduct = (id: number, body: Json) => apiSend<Product>("PUT", `/products/${id}`, body);
 export const deleteProduct = (id: number) => apiSend("DELETE", `/products/${id}`);
+
+// Ürün Detay — içerik linkleri (makale/blog/instagram)
+export const createProductLink = (body: Json) => apiSend<ProductLink>("POST", "/product-links", body);
+export const updateProductLink = (id: number, body: Json) =>
+  apiSend<ProductLink>("PUT", `/product-links/${id}`, body);
+export const deleteProductLink = (id: number) => apiSend("DELETE", `/product-links/${id}`);
+
+// Ürün Detay — bağlı cariler (tedarikçi/potansiyel tedarikçi/müşteri)
+export const createProductPartnerLink = (body: Json) =>
+  apiSend<ProductPartnerLink>("POST", "/product-partner-links", body);
+export const deleteProductPartnerLink = (id: number) =>
+  apiSend("DELETE", `/product-partner-links/${id}`);
+
+// --- Materyal Detay (ambalaj / etiket / sticker / diğer) ---------------------
+export type MaterialCategory = "AMBALAJ" | "ETIKET" | "STICKER" | "DIGER";
+export type MaterialScope = "OWN" | "B2B" | "BOTH";
+export interface Material {
+  id: number;
+  name: string;
+  category: MaterialCategory;
+  subType?: string | null;
+  scope: MaterialScope;
+  model?: string | null;
+  color?: string | null;
+  size?: string | null;
+  material?: string | null;
+  unitPrice?: number | null;
+  currency?: string | null;
+  usageAreas?: string | null;
+  notes?: string | null;
+  isActive?: boolean;
+}
+export type MaterialPartnerRole = "SUPPLIER" | "CUSTOMER";
+export interface MaterialPartnerLink {
+  id: number;
+  materialId: number;
+  partnerId: number;
+  role: MaterialPartnerRole;
+  note: string | null;
+  partner: Partner;
+}
+export interface MaterialPriceBreak {
+  id: number;
+  materialId: number;
+  minQty: number;
+  price: number;
+}
+export interface MaterialDetail extends Material {
+  partnerLinks: MaterialPartnerLink[];
+  priceBreaks: MaterialPriceBreak[];
+}
+
+export const getMaterials = (params?: { category?: string; subType?: string }) => {
+  const q = new URLSearchParams();
+  if (params?.category) q.set("category", params.category);
+  if (params?.subType) q.set("subType", params.subType);
+  const qs = q.toString();
+  return apiGet<Material[]>(`/materials${qs ? `?${qs}` : ""}`);
+};
+export const getMaterial = (id: number) => apiGet<MaterialDetail>(`/materials/${id}`);
+export const createMaterial = (body: Json) => apiSend<Material>("POST", "/materials", body);
+export const updateMaterial = (id: number, body: Json) =>
+  apiSend<Material>("PUT", `/materials/${id}`, body);
+export const deleteMaterial = (id: number) => apiSend("DELETE", `/materials/${id}`);
+export const createMaterialPartnerLink = (body: Json) =>
+  apiSend<MaterialPartnerLink>("POST", "/material-partner-links", body);
+export const deleteMaterialPartnerLink = (id: number) =>
+  apiSend("DELETE", `/material-partner-links/${id}`);
+export const createMaterialPriceBreak = (body: Json) =>
+  apiSend<MaterialPriceBreak>("POST", "/material-price-breaks", body);
+export const deleteMaterialPriceBreak = (id: number) =>
+  apiSend("DELETE", `/material-price-breaks/${id}`);
 
 export const getExpenseCategories = (scope?: ExpenseScope) =>
   apiGet<ExpenseCategory[]>(`/expense-categories${scope ? `?scope=${scope}` : ""}`);
@@ -700,6 +826,7 @@ export interface Attachment {
   id: number;
   entityName: string;
   entityId: number;
+  category?: string | null;
   fileName: string;
   url: string;
   mimeType: string | null;

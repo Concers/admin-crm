@@ -1,5 +1,6 @@
 import { PageShell } from "@/components/page-shell";
 import { getPurchases, getProducts, getPartners } from "@/lib/api";
+import { isProductDetailFilled } from "@/lib/urun-detay-fields";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ExportButton } from "@/components/export-button";
 import { StatCard, PanelCard } from "@/components/ui/stat-card";
@@ -37,7 +38,9 @@ export default async function UrunAlimPage() {
     a.name.localeCompare(b.name, "tr")
   );
 
-  const urunAdlari = urunler.map((u: { name: string }) => u.name);
+  const urunKartlari = urunler
+    .map((u) => ({ id: u.id, name: u.name, complete: isProductDetailFilled(u) }))
+    .sort((a, b) => a.name.localeCompare(b.name, "tr"));
   const tedarikciAdlari = tedarikciler.map((t: { name: string }) => t.name);
 
   const ozet = {
@@ -116,7 +119,7 @@ export default async function UrunAlimPage() {
         description="Filtreleyin, satıra tıklayarak düzenleyin veya yeni alım ekleyin"
         accent="emerald"
       >
-        <AlimWorkspace rows={rows} urunler={urunAdlari} tedarikciler={tedarikciAdlari} />
+        <AlimWorkspace rows={rows} urunKartlari={urunKartlari} tedarikciler={tedarikciAdlari} />
       </PanelCard>
     </PageShell>
   );

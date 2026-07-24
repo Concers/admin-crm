@@ -86,7 +86,7 @@ transactionsRouter.get(
 );
 
 /** Resolve + cost a sale payload from a request body. Returns null on bad input. */
-async function buildSaleData(body: Record<string, unknown>, saleId?: number) {
+export async function buildSaleData(body: Record<string, unknown>, saleId?: number) {
   const date = parseDate(body.date);
   const productName = String(body.productName ?? "").trim();
   const customerName = String(body.customerName ?? "").trim();
@@ -240,7 +240,7 @@ transactionsRouter.get(
   }),
 );
 
-async function buildPurchaseData(body: Record<string, unknown>) {
+export async function buildPurchaseData(body: Record<string, unknown>) {
   const date = parseDate(body.date);
   const productName = String(body.productName ?? "").trim();
   const quantity = toNumber(body.quantity);
@@ -356,7 +356,7 @@ transactionsRouter.get(
   }),
 );
 
-async function buildExpenseData(body: Record<string, unknown>) {
+export async function buildExpenseData(body: Record<string, unknown>) {
   const date = parseDate(body.date);
   if (!date) return null;
 
