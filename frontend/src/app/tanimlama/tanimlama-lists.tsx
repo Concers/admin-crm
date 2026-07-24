@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { Pencil, Trash2, Users } from "lucide-react";
+import Link from "next/link";
+import { IdCard, Pencil, Trash2, Users } from "lucide-react";
 import { DataTable } from "@/components/data-table";
 import {
   CARI_TANIM_PRIMARY_FILTER_KEYS,
@@ -146,6 +147,14 @@ export function TedarikciList({
             filterable: false,
             render: (row) => (
               <div className="flex justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
+                <Link
+                  href={`/cari/${row.id}`}
+                  title="Detay kartı"
+                  aria-label="Detay kartı"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-md text-[var(--muted-foreground)] hover:bg-[var(--muted)]"
+                >
+                  <IdCard className="h-4 w-4" />
+                </Link>
                 <Button
                   type="button"
                   variant="ghost"

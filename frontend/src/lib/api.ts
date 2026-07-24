@@ -95,10 +95,42 @@ export interface Partner {
   id: number;
   name: string;
   type: PartnerType;
+  contactInfo?: string | null;
   phone?: string | null;
   email?: string | null;
   address?: string | null;
   priceTier?: string | null;
+  // --- Cari detay alanları (§5) ---
+  taxNumber?: string | null;
+  mersisNo?: string | null;
+  website?: string | null;
+  tcNo?: string | null;
+  companyName?: string | null;
+  companyAddress?: string | null;
+  shopName?: string | null;
+  shopAddress?: string | null;
+  sector?: string | null;
+  serviceAreas?: string | null;
+  instagram?: string | null;
+  youtube?: string | null;
+  linkedin?: string | null;
+  isActive?: boolean;
+}
+
+export interface PartnerContactRow {
+  id: number;
+  name: string;
+  title: string | null;
+  phone: string | null;
+  email: string | null;
+}
+export interface PartnerDetail extends Partner {
+  contacts: PartnerContactRow[];
+  productLinks: (ProductPartnerLink & { product: Product })[];
+  purchasedProducts: { id: number; name: string }[];
+  soldProducts: { id: number; name: string }[];
+  expenseCategories: string[];
+  counts: { purchases: number; sales: number; expenses: number };
 }
 
 export interface Product {
@@ -260,6 +292,7 @@ export interface ProductDevelopment {
 // --- Master data -------------------------------------------------------------
 export const getPartners = (type?: PartnerType) =>
   apiGet<Partner[]>(`/partners${type ? `?type=${type}` : ""}`);
+export const getPartner = (id: number) => apiGet<PartnerDetail>(`/partners/${id}`);
 export const createPartner = (body: Json) => apiSend<Partner>("POST", "/partners", body);
 export const updatePartner = (id: number, body: Json) => apiSend<Partner>("PUT", `/partners/${id}`, body);
 export const deletePartner = (id: number) => apiSend("DELETE", `/partners/${id}`);

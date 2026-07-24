@@ -105,37 +105,32 @@ Backend: [requestForms.ts](backend/src/routes/requestForms.ts) — CRUD + üreti
 
 ---
 
-## 5. TANIMLAMA & CARİ
+## 5. TANIMLAMA & CARİ ✅ TAMAMLANDI (2026-07-24)
 
-Mevcut `Partner` alanları: `name, type, contactInfo, phone, email, address, priceTier`
-([schema.prisma:72](backend/prisma/schema.prisma#L72)). Tip: CUSTOMER / SUPPLIER / SERVICE_PROVIDER / OWNER / OTHER.
+`Partner` modeli genişletildi (taxNumber/VKN, mersisNo, website, tcNo, companyName, companyAddress,
+shopName, shopAddress, sector, serviceAreas, instagram/youtube/linkedin). Migration `expand_partner`.
+Backend: partners POST/PUT tüm alanları alır + `GET /partners/:id` detay (kişiler, bağlı ürünler,
+alım/satış/gider özeti). Yeni **`/cari/[id]`** tip-bilinçli detay/düzenle sayfası; Tanımlama listesinde
+her cari satırında **detay kartı** linki. Runtime doğrulandı (PUT yeni alanlar + GET detay).
 
-- [x] Tanımlama'da Müşteri / Tedarikçi / Hizmet Veren mevcut ([tanimlama](frontend/src/app/tanimlama))
-- [~] "Yeni cari ekle" — cari ekleme formları var ama aşağıdaki alanlar **yok**; genişletilecek:
-  - [ ] Firma İsmi
-  - [ ] Mersis No
-  - [ ] Vergi No
-  - [ ] Adres *(var)*
-  - [ ] İletişim *(var)*
-  - [ ] Web Site
+### 5.1 Tedarikçi Detay ✅
+- [x] Firma İsmi / Mersis No / Vergi No / Adres / İletişim / Web Site
+- [x] Talep Formu Oluştur (→ /tedarik-emri)
+- [x] Tedarikçinin Ürünleri — bağlı ürünler (ProductPartnerLink) + alım yapılan ürünler (tıkla → Ürün Detay)
 
-### 5.1 Tedarikçi Detay Seçeneği (Yeni)
-- [ ] Firma İsmi / Mersis No / Vergi No / Adres / İletişim / Web Site
-- [ ] Talep Formu Oluştur
-- [ ] Tedarikçinin Ürünleri — Ürün Detay'dan tıkla-çek liste
+### 5.2 Müşteri Detay ✅
+- [x] Adı Soyadı / TC / Adres / Telefon / Mail
+- [x] Sosyal Medya (Instagram / YouTube / LinkedIn)
+- [x] Dükkan Bilgileri / Dükkan Adresi
+- [x] Alınan Ürünler (satışlardan)
+- [x] Teklif Oluştur (→ /belgeler/teklif)
 
-### 5.2 Müşteri Detay Seçeneği (Yeni)
-- [ ] Adı Soyadı / TC / Adres / Telefon / Mail
-- [ ] Sosyal Medya (Instagram, YouTube, LinkedIn)
-- [ ] Dükkan Bilgileri / Dükkan Adresi
-- [ ] Alınan Ürünler
-- [ ] Teklif Formu Oluştur
-
-### 5.3 Hizmet Veren Detay Seçeneği (Yeni)
-- [ ] Adı Soyadı / TC / Adres / Telefon / Mail
-- [ ] Sosyal Medya / Firma İsmi / Firma Adresi / Web Sitesi / VKN / Mersis
-- [ ] Sektörü / Hizmet Alanları / Alınan Hizmetler
-- [ ] Talep Oluştur
+### 5.3 Hizmet Veren Detay ✅
+- [x] Adı Soyadı / TC / Adres / Telefon / Mail
+- [x] Sosyal Medya / Firma İsmi / Firma Adresi / Web Sitesi / VKN / Mersis
+- [x] Sektörü / Hizmet Alanları / Alınan Hizmetler (giderlerden)
+- [x] Talep Oluştur (→ /tedarik-emri)
+- [~] Not: "yeni cari ekle" formu şimdilik minimal (ad+tip); tüm alanlar detay sayfasından doldurulur
 
 ---
 

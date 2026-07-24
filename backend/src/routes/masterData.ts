@@ -30,6 +30,32 @@ masterDataRouter.use((req: AuthedRequest, res, next) => {
 });
 
 // --- Partners ----------------------------------------------------------------
+
+/** Coerce a request body into Partner detail column values (§5). */
+function partnerDetailData(body: Record<string, unknown>) {
+  return {
+    contactInfo: optStr(body.contactInfo),
+    phone: optStr(body.phone),
+    email: optStr(body.email),
+    address: optStr(body.address),
+    priceTier: optStr(body.priceTier),
+    taxNumber: optStr(body.taxNumber),
+    mersisNo: optStr(body.mersisNo),
+    website: optStr(body.website),
+    tcNo: optStr(body.tcNo),
+    companyName: optStr(body.companyName),
+    companyAddress: optStr(body.companyAddress),
+    shopName: optStr(body.shopName),
+    shopAddress: optStr(body.shopAddress),
+    sector: optStr(body.sector),
+    serviceAreas: optStr(body.serviceAreas),
+    instagram: optStr(body.instagram),
+    youtube: optStr(body.youtube),
+    linkedin: optStr(body.linkedin),
+    isActive: body.isActive === undefined ? undefined : Boolean(body.isActive),
+  };
+}
+
 masterDataRouter.get(
   "/partners",
   asyncHandler(async (req, res) => {
@@ -42,17 +68,56 @@ masterDataRouter.get(
   }),
 );
 
+/** Cari detay kartı: cari + iletişim kişileri + bağlı ürünler + son işlem özeti. */
+masterDataRouter.get(
+  "/partners/:id",
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid id" });
+    const partner = await prisma.partner.findUnique({
+      where: { id },
+      include: {
+        contacts: true,
+        productLinks: { include: { product: true } },
+      },
+    });
+    if (!partner) return res.status(404).json({ error: "not_found" });
+
+    // Bu cariyle yapılan işlemlerdeki ürünler (tekilleştirilmiş) — "alınan/verilen ürünler".
+    const [purchases, sales, expenses] = await Promise.all([
+      prisma.purchase.findMany({ where: { supplierId: id }, include: { product: true }, orderBy: { date: "desc" }, take: 100 }),
+      prisma.sale.findMany({ where: { customerId: id }, include: { product: true }, orderBy: { date: "desc" }, take: 100 }),
+      prisma.expense.findMany({ where: { partnerId: id }, orderBy: { date: "desc" }, take: 50 }),
+    ]);
+    const uniq = (arr: { product: { id: number; name: string } }[]) => {
+      const m = new Map<number, string>();
+      for (const r of arr) m.set(r.product.id, r.product.name);
+      return [...m].map(([pid, name]) => ({ id: pid, name }));
+    };
+
+    res.json({
+      ...partner,
+      purchasedProducts: uniq(purchases),
+      soldProducts: uniq(sales),
+      expenseCategories: [...new Set(expenses.map((e) => e.category))],
+      counts: { purchases: purchases.length, sales: sales.length, expenses: expenses.length },
+    });
+  }),
+);
+
 masterDataRouter.post(
   "/partners",
   asyncHandler(async (req, res) => {
-    const { name, type, contactInfo, phone, email, address, priceTier } = req.body ?? {};
-    if (!name || !type) return res.status(400).json({ error: "name and type are required" });
-    const partnerType = normalizePartnerType(type);
+    const body = req.body ?? {};
+    const name = optStr(body.name);
+    if (!name || !body.type) return res.status(400).json({ error: "name and type are required" });
+    const partnerType = normalizePartnerType(body.type);
+    const data = partnerDetailData(body);
     // Upsert by unique name so re-adding an existing partner just updates it.
     const partner = await prisma.partner.upsert({
-      where: { name: String(name).trim() },
-      update: { type: partnerType, contactInfo, phone, email, address, priceTier },
-      create: { name: String(name).trim(), type: partnerType, contactInfo, phone, email, address, priceTier },
+      where: { name },
+      update: { type: partnerType, ...data },
+      create: { name, type: partnerType, ...data },
     });
     res.status(201).json(partner);
   }),
@@ -63,17 +128,14 @@ masterDataRouter.put(
   asyncHandler(async (req, res) => {
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ error: "invalid id" });
-    const { name, type, contactInfo, phone, email, address, priceTier } = req.body ?? {};
+    const body = req.body ?? {};
+    const name = optStr(body.name);
     const partner = await prisma.partner.update({
       where: { id },
       data: {
-        name: name?.trim(),
-        type: type != null ? normalizePartnerType(type) : undefined,
-        contactInfo,
-        phone,
-        email,
-        address,
-        priceTier,
+        ...(name ? { name } : {}),
+        ...(body.type != null ? { type: normalizePartnerType(body.type) } : {}),
+        ...partnerDetailData(body),
       },
     });
     res.json(partner);

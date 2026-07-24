@@ -78,9 +78,25 @@ model Partner {
   email       String?
   address     String?
   priceTier   String? // fiyat segmenti (WHOLESALE/RETAIL…) — fiyat listesi eşleşmesi
-  isActive    Boolean     @default(true)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+
+  // --- Cari detay alanları (§5) ---------------------------------------------
+  taxNumber      String? // Vergi No / VKN
+  mersisNo       String? // Mersis No
+  website        String? // web sitesi
+  tcNo           String? // TC (birey: müşteri / hizmet veren)
+  companyName    String? // firma ismi (bireysel carinin firması)
+  companyAddress String? // firma adresi
+  shopName       String? // dükkan bilgileri (müşteri)
+  shopAddress    String? // dükkan adresi (müşteri)
+  sector         String? // sektör (hizmet veren)
+  serviceAreas   String? // hizmet alanları (hizmet veren)
+  instagram      String?
+  youtube        String?
+  linkedin       String?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   purchasesAsSupplier Purchase[]
   salesAsCustomer     Sale[]
