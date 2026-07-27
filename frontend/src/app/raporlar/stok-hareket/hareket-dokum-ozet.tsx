@@ -23,6 +23,7 @@ const SUMMARY_CARDS = [
     iconWrap: "bg-emerald-100 text-emerald-700 ring-emerald-200",
     value: "text-emerald-800",
     getValue: (t: HareketDokumTotals) => t.totalIn,
+    asCount: false,
   },
   {
     key: "out",
@@ -33,6 +34,7 @@ const SUMMARY_CARDS = [
     iconWrap: "bg-rose-100 text-rose-700 ring-rose-200",
     value: "text-rose-800",
     getValue: (t: HareketDokumTotals) => t.totalOut,
+    asCount: false,
   },
   {
     key: "count",

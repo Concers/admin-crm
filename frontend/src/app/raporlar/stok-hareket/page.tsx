@@ -25,7 +25,8 @@ export default async function StokHareketPage({
 
   const ledger = secili ? await getStockLedger(secili) : null;
   const totals = buildHareketDokumTotals(ledger);
-  const rows = buildHareketDokumTableRows(ledger, seciliUrun?.unit);
+  const birim = seciliUrun?.unit ?? undefined;
+  const rows = buildHareketDokumTableRows(ledger, birim);
 
   return (
     <PageShell
@@ -79,7 +80,7 @@ export default async function StokHareketPage({
         <>
           <HareketDokumOzet
             productName={secili}
-            unit={seciliUrun?.unit}
+            unit={birim}
             totals={totals}
             ledger={ledger}
           />

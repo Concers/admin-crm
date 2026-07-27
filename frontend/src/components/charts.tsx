@@ -38,18 +38,22 @@ const tooltipFmt = (value: unknown) => fmt(Number(value));
 
 const axisStyle = { fontSize: 12, fill: "var(--muted-foreground)" } as const;
 
+// Recharts tick bileşenine koordinatları `number | string` olarak veriyor;
+// imza onunla birebir uyuşmalı, yoksa `tick` prop'u tip denetiminden geçmez.
 function YAxisProductTick({
   x = 0,
   y = 0,
   payload,
 }: {
-  x?: number;
-  y?: number;
-  payload?: { value: string };
+  x?: number | string;
+  y?: number | string;
+  payload?: { value?: unknown };
 }) {
+  const cx = Number(x) || 0;
+  const cy = Number(y) || 0;
   return (
-    <text x={x - 6} y={y} dy={4} textAnchor="end" fill="var(--muted-foreground)" fontSize={11}>
-      {payload?.value ?? ""}
+    <text x={cx - 6} y={cy} dy={4} textAnchor="end" fill="var(--muted-foreground)" fontSize={11}>
+      {payload?.value == null ? "" : String(payload.value)}
     </text>
   );
 }

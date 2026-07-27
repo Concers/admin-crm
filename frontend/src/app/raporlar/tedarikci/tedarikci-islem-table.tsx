@@ -11,6 +11,7 @@ import type { OdemeTableRow } from "@/app/tedarikci-odeme/odeme-rows";
 import { OdemeModal } from "@/app/tedarikci-odeme/odeme-modal";
 import { deleteOdeme } from "@/app/tedarikci-odeme/actions";
 import type { AlimRow } from "@/app/urun-alim/alim-rows";
+import type { UrunKart } from "@/app/urun-alim/alim-list";
 import { AlimModal } from "@/app/urun-alim/alim-modal";
 import { deleteAlim } from "@/app/urun-alim/actions";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -138,11 +139,11 @@ const ODEME_CELL_RENDERERS = {
 
 export function TedarikciAlimTable({
   rows,
-  urunler,
+  urunKartlari,
   tedarikciler,
 }: {
   rows: AlimRow[];
-  urunler: string[];
+  urunKartlari: UrunKart[];
   tedarikciler: string[];
 }) {
   const [editing, setEditing] = useState<AlimRow | null>(null);
@@ -181,7 +182,7 @@ export function TedarikciAlimTable({
         <AlimModal
           mode="edit"
           row={editing}
-          urunler={urunler}
+          urunKartlari={urunKartlari}
           tedarikciler={tedarikciler}
           onClose={() => setEditing(null)}
         />

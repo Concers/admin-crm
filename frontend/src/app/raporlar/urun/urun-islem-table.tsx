@@ -25,6 +25,7 @@ import type { GiderTableRow } from "@/app/gider-girisi/gider-rows";
 import { GiderModal } from "@/app/gider-girisi/gider-modal";
 import { deleteGider } from "@/app/gider-girisi/actions";
 import type { AlimRow } from "@/app/urun-alim/alim-rows";
+import type { UrunKart } from "@/app/urun-alim/alim-list";
 import { AlimModal } from "@/app/urun-alim/alim-modal";
 import { deleteAlim } from "@/app/urun-alim/actions";
 import type { SatisTableRow } from "@/app/urun-satis/satis-rows";
@@ -231,11 +232,11 @@ export function UrunSatisTable({
 
 export function UrunAlimTable({
   rows,
-  urunler,
+  urunKartlari,
   tedarikciler,
 }: {
   rows: AlimRow[];
-  urunler: string[];
+  urunKartlari: UrunKart[];
   tedarikciler: string[];
 }) {
   const [editing, setEditing] = useState<AlimRow | null>(null);
@@ -274,7 +275,7 @@ export function UrunAlimTable({
         <AlimModal
           mode="edit"
           row={editing}
-          urunler={urunler}
+          urunKartlari={urunKartlari}
           tedarikciler={tedarikciler}
           onClose={() => setEditing(null)}
         />

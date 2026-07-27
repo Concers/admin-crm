@@ -50,7 +50,9 @@ export function alimFilterValue(key: string, row: AlimRow): string {
   }
 }
 
-const alimCellRenderers: Record<string, (row: AlimRow) => ReactNode> = {
+// Partial: her sütun anahtarının bir renderer'ı yok; indeksleme `undefined`
+// dönebilir ve aşağıdaki varlık kontrolü buna dayanıyor.
+const alimCellRenderers: Partial<Record<string, (row: AlimRow) => ReactNode>> = {
   tarih: (row) => (
     <span className="whitespace-nowrap font-medium tabular-nums">{tarihKisa(row._date)}</span>
   ),

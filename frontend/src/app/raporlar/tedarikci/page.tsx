@@ -17,6 +17,7 @@ import {
   buildTedarikciRaporTotals,
 } from "./tedarikci-rows";
 import { TedarikciSecici } from "./tedarikci-secici";
+import { isProductDetailFilled } from "@/lib/urun-detay-fields";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,12 @@ export default async function TedarikciRaporPage({
 
   const tedarikciAdlari = tedarikciler.map((t) => t.name);
   const urunAdlari = urunler.map((u) => u.name);
+  // Alım düzenleme modali ürün adını değil, kart durumunu da bilmek ister.
+  const urunKartlari = urunler.map((u) => ({
+    id: u.id,
+    name: u.name,
+    complete: isProductDetailFilled(u),
+  }));
   const tedarikciSecenekleri = [...suppliers, ...serviceProviders]
     .map((p) => p.name)
     .sort((a, b) => a.localeCompare(b, "tr"));
@@ -163,7 +170,7 @@ export default async function TedarikciRaporPage({
             </div>
             <TedarikciAlimTable
               rows={alimRows}
-              urunler={urunAdlari}
+              urunKartlari={urunKartlari}
               tedarikciler={tedarikciSecenekleri}
             />
           </div>

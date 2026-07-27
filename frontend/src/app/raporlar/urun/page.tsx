@@ -20,6 +20,7 @@ import {
 import { UrunSecici } from "./urun-secici";
 import { UrunKarsilastirSecici } from "./urun-karsilastir-secici";
 import { UrunKarsilastir } from "./urun-karsilastir";
+import { isProductDetailFilled } from "@/lib/urun-detay-fields";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,12 @@ export default async function UrunRaporPage({
   const listeMod = sp.liste === "1";
   const urunler = await getProducts();
   const urunAdlari = urunler.map((u) => u.name);
+  // Alım düzenleme modali ürün adını değil, kart durumunu da bilmek ister.
+  const urunKartlari = urunler.map((u) => ({
+    id: u.id,
+    name: u.name,
+    complete: isProductDetailFilled(u),
+  }));
 
   // Karşılaştırma modu: ?kar=A,B,C — geçerli ürün adlarına göre süzülür/tekilleştirilir.
   const validName = new Set(urunAdlari);
@@ -159,7 +166,7 @@ export default async function UrunRaporPage({
                 Tarih, tedarikçi, raf ve tutar kolonları
               </p>
             </div>
-            <UrunAlimTable rows={alimRows} urunler={urunAdlari} tedarikciler={tedarikciAdlari} />
+            <UrunAlimTable rows={alimRows} urunKartlari={urunKartlari} tedarikciler={tedarikciAdlari} />
           </div>
           <div>
             <div className="mb-3">
