@@ -314,6 +314,112 @@ body {
   }
 }
 
+/* -------------------------------------------------------------------------
+   Tanıtım sayfası & giriş ekranı.
+   Açık, sıcak zemin (kum/krem) üzerine beyaz kartlar; bordo ve altın vurgu.
+   ------------------------------------------------------------------------- */
+.qr-canvas {
+  background:
+    radial-gradient(ellipse 60% 50% at 15% 0%, rgba(191, 143, 54, 0.16), transparent 60%),
+    radial-gradient(ellipse 55% 60% at 100% 100%, rgba(89, 2, 25, 0.12), transparent 65%),
+    linear-gradient(155deg, #f8f4ef 0%, #f2e9e1 50%, #eee2e4 100%);
+}
+
+/* Ekranın ortasında duran ana kart. */
+.qr-card {
+  border: 1px solid rgba(38, 21, 21, 0.07);
+  box-shadow:
+    0 2px 6px rgba(38, 21, 21, 0.04),
+    0 40px 90px -45px rgba(38, 21, 21, 0.5);
+}
+
+/* Giriş ekranının sol yüzü. */
+.qr-login-aside {
+  background:
+    radial-gradient(ellipse 70% 50% at 20% 0%, rgba(191, 143, 54, 0.2), transparent 60%),
+    linear-gradient(160deg, #fbf7f2 0%, #f6ece2 55%, #f1e0e2 100%);
+}
+
+/* Koyu espresso şerit — tanıtım sayfasının kapanışı. */
+.qr-ink {
+  background: linear-gradient(140deg, #261515 0%, #3a0112 60%, #590219 100%);
+}
+
+/* Izgaranın 1px boşlukları dikiş olarak görünür. */
+.qr-wall {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1px;
+  background: rgba(38, 21, 21, 0.1);
+  border: 1px solid rgba(38, 21, 21, 0.1);
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 24px 50px -34px rgba(38, 21, 21, 0.45);
+}
+
+@media (min-width: 640px) {
+  .qr-wall {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 1024px) {
+  .qr-wall {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.qr-cell {
+  background: #ffffff;
+  padding: 1.15rem 1.25rem;
+  transition: background-color 0.2s ease;
+}
+
+.qr-cell:hover {
+  background: #fdfaf7;
+}
+
+.qr-cell-lit {
+  background: linear-gradient(150deg, #590219 0%, #3a0112 100%);
+}
+
+.qr-step {
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.qr-step:hover {
+  background: #fdfaf7;
+}
+
+.qr-focus:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+/* Sayfa açılışında sıralı beliriş. */
+@keyframes qr-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.qr-rise {
+  opacity: 0;
+  animation: qr-rise 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qr-rise {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 /* Dashboard — Power BI tarzı tuval */
 .dashboard-canvas {
   position: relative;

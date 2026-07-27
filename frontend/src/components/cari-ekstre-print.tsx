@@ -23,7 +23,7 @@ export function CariEkstrePrint({
       <EkstreAutoPrint />
 
       <header className="mb-8 border-b border-[var(--border)] pb-4">
-        <p className="text-xs uppercase tracking-widest text-[var(--muted-foreground)]">Kadim ERP</p>
+        <p className="text-xs uppercase tracking-widest text-[var(--muted-foreground)]">Quora</p>
         <h1 className="mt-1 text-2xl font-bold">{title}</h1>
         <div className="mt-3 flex flex-wrap gap-x-8 gap-y-1 text-sm">
           <p>

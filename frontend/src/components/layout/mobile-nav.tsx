@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Menu, X, LayoutDashboard } from "lucide-react";
+import { Menu, X } from "lucide-react";
+import { QuoraMark } from "@/components/brand/quora-mark";
 import { Button } from "@/components/ui/button";
 import { useLayoutSession } from "./layout-context";
 import { SidebarFooter } from "./sidebar";
@@ -36,9 +37,9 @@ export function MobileNav() {
             <div className="flex h-16 items-center justify-between border-b border-[var(--border)] px-4">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)]">
-                  <LayoutDashboard className="h-4 w-4" />
+                  <QuoraMark className="h-4.5 w-4.5" />
                 </div>
-                <span className="font-semibold">Kadim ERP</span>
+                <span className="font-semibold">Quora</span>
               </div>
               <Button
                 type="button"

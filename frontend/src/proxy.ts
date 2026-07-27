@@ -42,6 +42,10 @@ export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const token = req.cookies.get("token")?.value;
 
+  // Kök adres herkese açık: oturum yoksa tanıtım sayfası, varsa panel
+  // (ayrımı `app/page.tsx` yapar).
+  if (pathname === "/") return NextResponse.next();
+
   // Unauthenticated → login.
   if (!token) {
     const url = req.nextUrl.clone();

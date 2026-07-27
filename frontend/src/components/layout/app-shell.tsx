@@ -16,7 +16,9 @@ export function AppShell({
 }) {
   const pathname = usePathname();
 
+  // Giriş, yazdırma ve (oturum yokken) tanıtım sayfası panel kabuğu olmadan çıkar.
   if (pathname === "/login" || pathname.includes("/yazdir")) return <>{children}</>;
+  if (pathname === "/" && role === null) return <>{children}</>;
 
   return (
     <LayoutProvider role={role} userName={userName}>

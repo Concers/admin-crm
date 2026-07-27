@@ -1,100 +1,120 @@
-"use client";
+import Link from "next/link";
+import { ArrowLeft, BarChart3, ShieldCheck, Users } from "lucide-react";
+import { PanelMockup } from "@/components/brand/panel-mockup";
+import { QuoraMark } from "@/components/brand/quora-mark";
+import { LoginForm } from "./login-form";
 
-import { useActionState } from "react";
-import { LayoutDashboard, Lock, Mail } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { login, type LoginState } from "./actions";
+export const metadata = {
+  title: "Giriş · Quora",
+};
 
-export default function LoginPage() {
-  const [state, formAction, pending] = useActionState<LoginState, FormData>(login, {});
+const FEATURES = [
+  { icon: BarChart3, label: "Canlı\nRaporlama" },
+  { icon: ShieldCheck, label: "Güvenli\nAltyapı" },
+  { icon: Users, label: "Rol Bazlı\nYetkilendirme" },
+];
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ expired?: string }>;
+}) {
+  const { expired } = await searchParams;
 
   return (
-    <div className="flex min-h-screen">
-      <div className="relative hidden flex-1 flex-col justify-between overflow-hidden bg-gradient-to-br from-[#261515] via-[#590219] to-[#BF8F36] p-10 text-white lg:flex">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_100%_0%,rgba(191,143,54,0.35),transparent_70%)]" />
-        <div className="relative flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur ring-1 ring-white/20">
-            <LayoutDashboard className="h-5 w-5" />
+    <div className="qr-canvas flex min-h-screen items-center justify-center p-4 sm:p-8">
+      <div className="qr-card w-full max-w-[1120px] overflow-hidden rounded-3xl bg-white">
+        <div className="grid lg:grid-cols-[1.02fr_0.98fr]">
+          {/* Sol — tanıtım yüzü */}
+          <div className="qr-login-aside relative hidden overflow-hidden p-10 pb-[230px] lg:block">
+            <Link href="/" className="relative z-10 flex items-center gap-3.5">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--primary)] text-white shadow-[0_10px_22px_-12px_rgba(89,2,25,0.9)]">
+                <QuoraMark className="h-6 w-6" />
+              </span>
+              <span>
+                <span className="block text-[1.6rem] font-bold leading-none tracking-[-0.03em] text-[#261515]">
+                  Quora
+                </span>
+                <span className="mt-1 block text-[0.78rem] text-[#8c6c7e]">İşletme Yönetim Sistemi</span>
+              </span>
+            </Link>
+
+            <div className="relative z-10 mt-11">
+              <h2 className="text-[1.85rem] font-bold leading-[1.2] tracking-[-0.03em] text-[#261515]">
+                İşinizi kolaylaştırın,
+                <br />
+                verimliliğinizi artırın.
+              </h2>
+              <p className="mt-4 max-w-sm text-[0.95rem] leading-relaxed text-[#7a6470]">
+                Stok, üretim, cari hesaplar, belgeler ve finans — hepsi tek platformda.
+              </p>
+            </div>
+
+            <div className="relative z-10 mt-9 flex gap-7">
+              {FEATURES.map(({ icon: Icon, label }) => (
+                <div key={label} className="flex w-[92px] flex-col items-center text-center">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-[0_8px_18px_-10px_rgba(38,21,21,0.45)]">
+                    <Icon className="h-5 w-5 text-[var(--primary)]" />
+                  </span>
+                  <span className="mt-2.5 whitespace-pre-line text-[0.72rem] font-medium leading-tight text-[#6f5b66]">
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Panel önizlemesi — kartın alt kenarından taşarak kırpılır */}
+            <div className="pointer-events-none absolute -bottom-10 left-6 right-[-14%] z-0">
+              <PanelMockup className="w-full drop-shadow-[0_24px_40px_rgba(38,21,21,0.18)]" />
+            </div>
           </div>
-          <div>
-            <p className="text-lg font-semibold">Kadim ERP</p>
-            <p className="text-sm text-white/70">Firma yönetim paneli</p>
+
+          {/* Sağ — form */}
+          <div className="flex items-center justify-center bg-white px-6 py-12 sm:px-12">
+            <div className="w-full max-w-[380px]">
+              <Link href="/" className="mb-8 inline-flex items-center gap-3 lg:hidden">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--primary)] text-white">
+                  <QuoraMark className="h-5 w-5" />
+                </span>
+                <span>
+                  <span className="block text-xl font-bold leading-none tracking-[-0.03em]">Quora</span>
+                  <span className="mt-1 block text-[0.72rem] text-[var(--muted-foreground)]">
+                    İşletme Yönetim Sistemi
+                  </span>
+                </span>
+              </Link>
+
+              <h1 className="text-[1.65rem] font-bold tracking-[-0.03em] text-[#261515]">Hoş geldiniz</h1>
+              <p className="mb-8 mt-1.5 text-sm text-[var(--muted-foreground)]">
+                Hesabınıza giriş yaparak devam edin.
+              </p>
+
+              <LoginForm expired={expired === "1"} />
+
+              <p className="mt-6 text-center text-xs leading-relaxed text-[var(--muted-foreground)]">
+                Şifrenizi unuttuysanız veya hesabınız yoksa yöneticinize başvurun.
+              </p>
+
+              <div className="mt-6 flex justify-center">
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--muted-foreground)] transition-colors hover:text-[var(--primary)]"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  Tanıtım sayfasına dön
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="relative max-w-md space-y-4">
-          <h2 className="text-3xl font-semibold leading-tight">
-            Stok, gider ve satışlarınızı tek yerden yönetin
-          </h2>
-          <p className="leading-relaxed text-white/75">
-            Excel kayıtlarınızın dijital karşılığı. Gider girişi, alım-satış, raporlar ve belgeler — hepsi
-            güvenli ve düzenli.
-          </p>
-        </div>
-        <p className="relative text-xs text-white/50">© Kadim Naturel</p>
-      </div>
 
-      <div className="flex flex-1 items-center justify-center bg-[var(--background)] p-6 sm:p-10">
-        <div className="w-full max-w-[400px]">
-          <div className="mb-8 lg:hidden">
-            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--primary)] text-white">
-              <LayoutDashboard className="h-5 w-5" />
-            </div>
-            <h1 className="text-2xl font-semibold tracking-tight">Kadim ERP</h1>
-            <p className="mt-1 text-sm text-[var(--muted-foreground)]">Devam etmek için giriş yapın</p>
-          </div>
-
-          <div className="mb-8 hidden lg:block">
-            <h1 className="text-2xl font-semibold tracking-tight">Hoş geldiniz</h1>
-            <p className="mt-1 text-sm text-[var(--muted-foreground)]">Hesabınıza giriş yapın</p>
-          </div>
-
-          <form action={formAction} className="space-y-5">
-            <div>
-              <Label htmlFor="email">E-posta</Label>
-              <div className="relative mt-1.5">
-                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="username"
-                  required
-                  placeholder="admin@kadim.local"
-                  className="pl-9"
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="password">Şifre</Label>
-              <div className="relative mt-1.5">
-                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  placeholder="••••••••"
-                  className="pl-9"
-                />
-              </div>
-            </div>
-            {state.error && (
-              <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-                {state.error}
-              </div>
-            )}
-            <Button type="submit" disabled={pending} className="w-full" size="md">
-              {pending ? "Giriş yapılıyor…" : "Giriş Yap"}
-            </Button>
-          </form>
-
-          <p className="mt-6 text-center text-xs text-[var(--muted-foreground)]">
-            Yerel geliştirme: <code className="rounded bg-[var(--muted)] px-1">admin@kadim.local</code> /{" "}
-            <code className="rounded bg-[var(--muted)] px-1">admin123</code>
-          </p>
+        {/* Kart altı şerit */}
+        <div className="flex flex-col items-center justify-between gap-2 border-t border-[#EFE7E1] bg-[#FCFAF8] px-6 py-3.5 text-[0.72rem] text-[var(--muted-foreground)] sm:flex-row sm:px-8">
+          <span className="flex items-center gap-2">
+            <ShieldCheck className="h-3.5 w-3.5 text-[var(--green)]" />
+            Oturumunuz şifreli çerezde saklanır, 12 saat sonra düşer.
+          </span>
+          <span>© 2026 Quora · Tüm hakları saklıdır.</span>
         </div>
       </div>
     </div>

@@ -111,7 +111,7 @@ export default async function RehberPage() {
       {/* Hoş geldin */}
       <Card>
         <CardContent>
-          <h2 className="text-lg font-semibold">Kadim Naturel ERP&apos;ye hoş geldiniz{session?.name ? `, ${session.name}` : ""} 👋</h2>
+          <h2 className="text-lg font-semibold">Quora&apos;ya hoş geldiniz{session?.name ? `, ${session.name}` : ""} 👋</h2>
           <p className="mt-2 text-sm text-[var(--muted-foreground)]">
             Bu sistem; ürün alım-satışınızı, stoğunuzu, cari hesaplarınızı ve giderlerinizi tek yerden yönetir.
             Excel&apos;de yaptığınız her şeyi otomatik hesaplarla, hatasız ve raporlanabilir biçimde yapar.

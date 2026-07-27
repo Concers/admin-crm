@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, LogOut, KeyRound } from "lucide-react";
+import { LogOut, KeyRound } from "lucide-react";
+import { QuoraMark } from "@/components/brand/quora-mark";
 import { ROLE_LABELS, type UserRole } from "@/lib/roles";
 import { logout } from "@/app/login/actions";
 import { SidebarNav } from "./sidebar-nav";
 import { TourButton } from "@/components/tour/tour-button";
 
 function UserInitials({ name }: { name: string | null }) {
-  const initials = (name ?? "K")
+  const initials = (name ?? "Q")
     .split(" ")
     .map((p) => p[0])
     .join("")
@@ -59,11 +60,11 @@ export function Sidebar({ role, userName }: { role: UserRole | null; userName: s
     <aside className="hidden w-[260px] shrink-0 flex-col border-r border-[var(--border)] bg-[var(--card)] md:flex">
       <div className="flex h-16 items-center gap-3 border-b border-[var(--border)] px-5">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm">
-          <LayoutDashboard className="h-4 w-4" />
+          <QuoraMark className="h-5 w-5" />
         </div>
         <div>
-          <p className="text-sm font-semibold tracking-tight">Kadim ERP</p>
-          <p className="text-xs text-[var(--muted-foreground)]">Firma Yönetimi</p>
+          <p className="text-sm font-semibold tracking-tight">Quora</p>
+          <p className="text-xs text-[var(--muted-foreground)]">İşletme Yönetimi</p>
         </div>
       </div>
       <div data-tour="sidebar" className="flex-1 overflow-y-auto p-3">

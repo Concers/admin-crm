@@ -1,4 +1,4 @@
-# Kadim Naturel — Mini ERP
+# Quora — İşletme Yönetim Sistemi
 
 Excel'de tutulan cari/stok/gider kayıtlarını ilişkisel bir veritabanına taşıyan,
 backend API + frontend arayüzünden oluşan Mini-ERP uygulaması.

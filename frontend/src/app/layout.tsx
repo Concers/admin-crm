@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kadim Naturel ERP",
-  description: "Kadim Naturel Mini-ERP yönetim paneli",
+  title: "Quora — İşletme Yönetim Sistemi",
+  description: "Quora: depo, kasa, üretim ve cari kayıtlarını tek panelde toplayan yönetim sistemi",
 };
 
 export default async function RootLayout({

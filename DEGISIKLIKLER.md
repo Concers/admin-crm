@@ -39,6 +39,14 @@
 - **Öncesi:** Sözleşme/Termin/İş Başvuru/Çerez/E-Katalog yok.
 - **Eklendi:** Esnek `GenericForm`; `/formlar` hub + `/formlar/[id]` detay (alt tür, içerik, durum, PDF).
 
+### §7 Quora markası + tanıtım sayfası
+- **Öncesi:** Marka "Kadim Naturel / Kadim ERP"; kök adres yalnızca panel, oturumsuz ziyaretçi doğrudan `/login`'e düşüyordu.
+- **Eklendi:**
+  - **Marka:** Panel, giriş ekranı, metadata, sidebar/mobil menü, cari ekstre çıktısı, tur ve backend log metinleri **Quora** oldu. Ortak logo: `components/brand/quora-mark.tsx` (raflı depo duvarı işareti).
+  - **Tanıtım sayfası:** `components/landing/landing-page.tsx` — "modül duvarı" (7 bölüm / 51 ekran, `lib/navigation.ts` ile birebir), bir günün akışı (gider → alım → üretim → raf → satış → tahsilat), roller ve çıktı/aktarım bölümleri. Sunucu bileşeni; hareket tamamen CSS (`globals.css → .qr-*`), `prefers-reduced-motion` destekli.
+  - **Yönlendirme:** Kök adres artık çift görevli — `app/page.tsx` oturum yoksa tanıtım, varsa panonun kendisi. `proxy.ts` `/` yolunu herkese açtı, `AppShell` oturumsuz kökte kabuğu gizliyor.
+  - **Giriş ekranı:** Sunucu sayfası + `login-form.tsx` istemci bileşeni olarak ayrıldı; `?expired=1` için "oturum süresi doldu" uyarısı eklendi, ekrandaki demo hesap bilgisi kaldırıldı.
+
 ---
 
 ## Bölüm 2 — Teknik Envanter (bu turda eklenen)

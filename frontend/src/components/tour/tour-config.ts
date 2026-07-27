@@ -31,7 +31,7 @@ export function buildSteps(role: UserRole | null): TourStepDef[] {
   return [
     {
       id: "welcome",
-      title: "Kadim ERP'ye Hoş Geldiniz 👋",
+      title: "Quora'ya Hoş Geldiniz 👋",
       text: `Merhaba <strong>${roleAd}</strong>! Bu kısa tur, panelin ana bölümlerini ve nereden ne yapacağınızı gösterecek. İstediğiniz an <em>Esc</em> ile çıkabilir, daha sonra menüden tekrar başlatabilirsiniz.`,
     },
     {

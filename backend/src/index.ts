@@ -1,5 +1,5 @@
 // =============================================================================
-// Kadim Naturel ERP — REST API
+// Quora — REST API
 //
 // This service is the single owner of the database and Prisma schema; the
 // frontend consumes these endpoints rather than importing Prisma directly.
@@ -36,7 +36,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", message: "Kadim Naturel ERP backend is running" });
+  res.json({ status: "ok", message: "Quora backend is running" });
 });
 
 // Public auth endpoints (login). Everything below requires a valid token.
@@ -63,7 +63,7 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 const server = app.listen(PORT, () => {
-  console.log(`Kadim Naturel ERP backend listening on http://localhost:${PORT}`);
+  console.log(`Quora backend listening on http://localhost:${PORT}`);
 });
 
 process.on("SIGTERM", () => {
